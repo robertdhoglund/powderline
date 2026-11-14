@@ -2,11 +2,12 @@
 import { G } from './state.js';
 import { FINISH } from './course.js';
 import { clamp } from './util.js';
+import { LEVEL } from './levels.js';
 
 const $ = (id) => document.getElementById(id);
 const el = { hud: $('hud'), score: $('score'), flow: $('flow'), flowFill: $('flowFill'), pop: $('pop'), prog: $('progFill'), speed: $('speed'),
   reticle: $('reticle'), focus: $('focusArc'), overlay: $('overlay'), flash: $('flash'), kicker: $('kicker'), title: $('title'), tag: $('tagline'),
-  start: $('start'), stats: $('stats'), help: $('help') };
+  start: $('start'), frost: $('frost'), shield: $('shield'), stats: $('stats'), help: $('help') };
 let shown = -1, popT = 0;
 
 // Every scoring event raises the flow multiplier. Flow fades if you stop making things happen.
@@ -31,6 +32,9 @@ export function updateHud(P, rdt) {
   el.prog.style.transform = `scaleX(${clamp(P.d / FINISH, 0, 1)})`;
   el.speed.textContent = Math.round(P.v * 3.6);
   if (popT > 0) { popT -= rdt; if (popT <= 0) el.pop.classList.remove('show'); }
+  // snowball frost on the lens, shield count
+  if (G.frost > 0) G.frost = Math.max(0, G.frost - rdt * 0.6); el.frost.style.opacity = G.frost;
+  el.shield.textContent = G.shield > 0 ? `SHIELD ${'◆'.repeat(G.shield)}` : '';
   // reticle
   const a = G.aim, r = el.reticle;
   r.style.transform = `translate(${G.input.px}px, ${G.input.py}px)`;
@@ -41,16 +45,18 @@ export function updateHud(P, rdt) {
 }
 
 export function showHud(on) { el.hud.classList.toggle('hidden', !on); el.reticle.classList.toggle('hidden', !on); document.body.classList.toggle('playing', on); }
-export function showOverlay(kind) {
+export function showOverlay(kind, res) {
   el.overlay.className = kind ? `show ${kind}` : '';
-  if (kind === 'title') { el.kicker.textContent = 'ONE MOUNTAIN · ONE RUN'; el.title.innerHTML = 'POWDER<span>LINE</span>'; el.tag.textContent = 'Carve the powder. Draw the bow. Shatter the ice.'; el.start.textContent = 'DROP IN'; el.stats.innerHTML = ''; }
+  $('restart').textContent = kind === 'finished' ? 'BASE CAMP' : 'RESTART';
+  if (kind === 'title') { el.kicker.textContent = `${LEVEL.place} · ${LEVEL.time}`; el.title.innerHTML = 'POWDER<span>LINE</span>'; el.tag.textContent = 'Carve the powder. Draw the bow. Hunt the goblins.'; el.start.textContent = 'DROP IN'; el.stats.innerHTML = ''; }
   if (kind === 'paused') { el.kicker.textContent = 'PAUSED'; el.title.innerHTML = 'BREATHE<span>.</span>'; el.tag.textContent = 'The mountain will wait.'; el.start.textContent = 'RESUME'; el.stats.innerHTML = ''; }
   if (kind === 'finished') {
-    const s = G.stats, t = G.totals, rank = G.score >= 190000 ? 'S' : G.score >= 120000 ? 'A' : G.score >= 60000 ? 'B' : 'C';
-    el.kicker.textContent = 'RUN COMPLETE'; el.title.innerHTML = `RANK <span>${rank}</span>`;
-    el.tag.textContent = `${G.score.toLocaleString('en-US')} points in ${s.time.toFixed(1)} seconds`;
-    el.stats.innerHTML = [['TARGETS', `${s.kills}/${t.targets}`], ['PERFECT', s.perfect], ['ICE', `${s.ice}/${t.ice}`], ['GATES', `${s.gates}/${t.gates}`], ['BEST FLOW', `×${s.bestFlow}`], ['BIG AIR', `${s.maxAir.toFixed(1)}s`]]
-      .map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('');
+    const s = G.stats, t = G.totals, mm = Math.floor(s.time / 60), ss = (s.time % 60).toFixed(1).padStart(4, '0');
+    el.kicker.textContent = `${LEVEL.name} · RUN COMPLETE`; el.title.innerHTML = `RANK <span>${res.rank}</span>`;
+    el.tag.textContent = `${G.score.toLocaleString('en-US')} points  ·  +${res.coins.toLocaleString('en-US')} coins${res.opened ? `  ·  ${res.opened.name} unlocked` : ''}`;
+    el.stats.innerHTML = [['GOBLINS', `${s.kills}/${t.targets}`, res.gob], ['GATES', `${s.gates}/${t.gates}`, res.gate], ['TIME', `${mm}:${ss}`, res.speed]]
+      .map(([k, v, f]) => `<div class="big"><b>${v}</b><span>${k}</span><em><u style="width:${Math.round(f * 100)}%"></u></em></div>`).join('')
+      + [['PERFECT', s.perfect], ['BEST FLOW', `×${s.bestFlow}`], ['BIG AIR', `${s.maxAir.toFixed(1)}s`], ['SNOWBALLED', s.hits]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('');
     el.start.textContent = 'RIDE AGAIN';
   }
 }

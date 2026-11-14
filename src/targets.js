@@ -7,9 +7,10 @@ import * as snow from './snow.js';
 import { height, cx, dcx, slopeAt, sentries, pacers, gates, FINISH, widthAt } from './course.js';
 import { P } from './player.js';
 import { burst, ring, hitstop, shake } from './fx.js';
-import { award } from './hud.js';
+import { award, pop, breakFlow } from './hud.js';
+import { LEVEL } from './levels.js';
 import { sfx } from './audio.js';
-import { clamp, smoothstep, damp } from './util.js';
+import { clamp, rand } from './util.js';
 
 const GOLD = new THREE.Color('#ffb648').multiplyScalar(3), GREEN = new THREE.Color('#7fd058').multiplyScalar(1.2), HIDE = new THREE.Color('#5e3b2a'), FLAME = new THREE.Color('#ff7a2a').multiplyScalar(2.6), VIOLET = new THREE.Color('#b99cff').multiplyScalar(2.2);
 // ---- goblins ----------------------------------------------------------------------------
@@ -60,7 +61,7 @@ function makeEnemy(kind, base) {
   const type = kind === 'pacer' ? 'raider' : base.tower ? 'tower' : 'balloon';
   const group = new THREE.Mesh(type === 'raider' ? raiderGeo : type === 'tower' ? towerGeo : balloonGeo, gobMat);
   group.castShadow = true; group.frustumCulled = false; scene.add(group);
-  enemies.push({ kind, type, base, group, pos: group.position, pos2: type === 'balloon' ? new THREE.Vector3() : null, vel: new THREE.Vector3(), alive: true, radius: 1.3, phase: enemies.length * 1.7, t: 0, active: kind === 'sentry', chain: -1 });
+  enemies.push({ kind, type, base, group, pos: group.position, pos2: type === 'balloon' ? new THREE.Vector3() : null, vel: new THREE.Vector3(), alive: true, radius: 1.3, phase: enemies.length * 1.7, t: 0, cool: 0, active: kind === 'sentry', chain: -1 });
 }
 sentries.forEach((s) => makeEnemy('sentry', s));
 pacers.forEach((s) => makeEnemy('pacer', s));
@@ -102,8 +103,38 @@ export function killEnemy(e, perfect, dir) {
   for (const o of enemies) if (o.alive && o.active && o.chain < 0 && o.pos.distanceToSquared(e.pos) < 81) o.chain = 0.13;
 }
 
+// ---- snowballs --------------------------------------------------------------------------
+const ballGeo = new THREE.IcosahedronGeometry(0.34, 1), ballMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.25, 1.3, 1.55) });
+const balls = Array.from({ length: 14 }, () => { const m = new THREE.Mesh(ballGeo, ballMat); m.visible = false; m.castShadow = true; scene.add(m); return { m, pos: m.position, vel: new THREE.Vector3(), live: false, t: 0 }; });
+const CYAN = new THREE.Color('#7af3ff').multiplyScalar(2), _t = new THREE.Vector3();
+function throwAt(e) {
+  const b = balls.find((x) => !x.live); if (!b) return;
+  b.pos.copy(e.pos); b.pos.y += 0.9;
+  const t = clamp(b.pos.distanceTo(P.pos) / 36, 0.75, 1.5);
+  // Aimed where you will be if you hold your line. Carve and it misses.
+  _t.set(P.x + P.vel.x * t + rand(-1.4, 1.4), 0, P.z + P.vel.z * t + rand(-1.4, 1.4)); _t.y = height(_t.x, _t.z) + 1.1;
+  b.vel.subVectors(_t, b.pos).divideScalar(t); b.vel.y += 0.5 * 16 * t;
+  b.live = true; b.t = 0; b.m.visible = true; sfx('throw');
+}
+function updateBalls(dt) {
+  for (const b of balls) {
+    if (!b.live) continue;
+    b.t += dt; b.vel.y -= 16 * dt; b.pos.addScaledVector(b.vel, dt); b.m.rotation.x += dt * 9;
+    if (Math.random() < dt * 40) snow.emit(b.pos.x, b.pos.y, b.pos.z, 0, 0.3, 0, 0.3, 0.45, 1.5, 0.35, 1, 1);
+    let dead = b.t > 3.5;
+    if (b.pos.distanceToSquared(P.chest) < 1.5) {
+      dead = true; snow.puff(b.pos, 26, 1.2, P.vel.x * 0.5, 0, P.vel.z * 0.5);
+      if (G.mode !== 'run') { /* no effect after the finish */ }
+      else if (G.shield > 0) { G.shield--; ring(P.chest, CYAN, 5, 0.35); sfx('block'); pop(`BLOCKED  ·  ${G.shield} LEFT`); }
+      else { P.v *= 0.78; breakFlow(); shake(0.5); G.frost = 1; G.stats.hits++; sfx('splat'); pop('SPLAT'); }
+    } else if (b.pos.y < height(b.pos.x, b.pos.z)) { dead = true; snow.puff(b.pos, 12, 0.8); }
+    if (dead) { b.live = false; b.m.visible = false; }
+  }
+}
+
 const _prev = new THREE.Vector3();
 export function updateTargets(dt) {
+  updateBalls(dt);
   for (const e of enemies) {
     if (!e.alive) continue;
     if (e.chain > 0) { e.chain -= dt; if (e.chain <= 0) { e.chain = 0; killEnemy(e, false, null); continue; } }
@@ -130,6 +161,13 @@ export function updateTargets(dt) {
       if (leave > 1.4) { e.alive = false; e.group.visible = false; continue; }
     }
     if (dt > 1e-4) e.vel.subVectors(e.pos, _prev).divideScalar(dt); if (e.vel.lengthSq() > 90 * 90) e.vel.set(0, 0, 0);
+    // Snowballs: lookouts and balloon goblins throw as you come into range, raiders keep throwing.
+    e.cool -= dt;
+    const ahead = -e.pos.z - P.d;
+    if (G.mode === 'run' && e.cool <= 0 && ahead > 24 && ahead < 78 && (e.type !== 'raider' || e.t > 1.6)) {
+      e.cool = (e.type === 'raider' ? 2.6 : 2.2) / LEVEL.throws + rand(0, 0.8);
+      if (Math.random() < 0.55 * LEVEL.throws) throwAt(e);
+    }
   }
   for (const g of gateObjs) {
     if (g.state === 0 && P.d >= g.d) {
@@ -143,6 +181,7 @@ export function updateTargets(dt) {
 }
 
 export function resetTargets() {
-  for (const e of enemies) { e.alive = true; e.active = e.kind === 'sentry'; e.group.visible = e.active; e.t = 0; e.chain = -1; e.vel.set(0, 0, 0); }
+  balls.forEach((b) => { b.live = false; b.m.visible = false; });
+  for (const e of enemies) { e.alive = true; e.active = e.kind === 'sentry'; e.group.visible = e.active; e.t = 0; e.cool = rand(0, 1); e.chain = -1; e.vel.set(0, 0, 0); }
   for (const g of gateObjs) { g.state = g.d < P.d ? 2 : 0; g.poles.forEach((p) => { p.scale.set(1, 1, 1); p.children.forEach((c) => { c.material = poleMat; }); }); }
 }

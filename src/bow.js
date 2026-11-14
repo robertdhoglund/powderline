@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { T } from './config.js';
+import { upLevel } from './store.js';
 import { scene, camera } from './world.js';
 import { height } from './course.js';
 import { P } from './player.js';
@@ -69,6 +70,17 @@ export function release() {
   findTarget();
   a.pos.copy(P.bowPos); solve(a.pos, target, targetVel, speed, a.vel).multiplyScalar(speed);
   a.state = 1; a.t = 0; a.full = A.draw >= 1; a.mesh.visible = true; a.trail.mesh.visible = true; a.pts.forEach((p) => p.copy(a.pos));
+  // Triple shot: two more arrows go for the nearest other goblins, or fan out if there are none.
+  if (upLevel('triple')) {
+    const others = enemies.filter((e) => e.alive && e.group.visible && e !== A.lock && e.pos.distanceToSquared(target) < 18 * 18).sort((x, y) => x.pos.distanceToSquared(target) - y.pos.distanceToSquared(target));
+    for (let i = 0; i < 2; i++) {
+      const x = arrows.find((q) => q.state === 0); if (!x) break;
+      x.pos.copy(P.bowPos);
+      if (others[i]) solve(x.pos, others[i].pos, others[i].vel, speed, x.vel).multiplyScalar(speed);
+      else { x.vel.copy(a.vel); _w.set(-a.vel.z, 0, a.vel.x).normalize(); x.vel.addScaledVector(_w, (i ? 1 : -1) * speed * 0.06); }
+      x.state = 1; x.t = 0; x.mesh.visible = true; x.trail.mesh.visible = true; x.pts.forEach((p) => p.copy(x.pos));
+    }
+  }
   G.punch += 0.12; shake(0.1 + A.draw * 0.1); sfx('release'); A.draw = 0;
 }
 

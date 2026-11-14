@@ -6,7 +6,8 @@ export const T = {
   gravity: 17,           // pull along the slope
   airGravity: 26,        // pull while airborne
   dragQuad: 0.0068,      // air + snow drag, sets top speed per slope angle
-  tuckDrag: 0.6,         // drag multiplier while tucking (W)
+  tuckDrag: 0.4,         // drag multiplier while tucking (W)
+  tuckPush: 2.6,         // extra pull while tucking
   brakeDecel: 17,        // S
   startSpeed: 15, minSpeed: 9, maxSpeed: 50,
   turnRate: 1.95,        // radians per second at full edge

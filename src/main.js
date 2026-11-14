@@ -12,6 +12,10 @@ import './props.js';
 import { updateBow, resetBow, startDraw, release, cancelDraw, focusScale } from './bow.js';
 import { updateHud, showHud, showOverlay, pop } from './hud.js';
 import { initAudio, setRide, silence } from './audio.js';
+import { openLobby, closeLobby, settle } from './lobby.js';
+import { LEVEL } from './levels.js';
+import { save, persist, upLevel } from './store.js';
+import './upgrades.js';
 import { clamp, damp } from './util.js';
 import * as THREE from 'three';
 
@@ -23,11 +27,17 @@ function reset() {
   resetState(); G.rtRun = 0; resetPlayer(); resetCamera(); resetSnow(); resetFx(); resetTargets(); resetIce(); resetBow();
 }
 function start() {
-  initAudio();
+  initAudio(); closeLobby();
   if (G.mode === 'paused') { G.mode = 'run'; showOverlay(null); showHud(true); return; }
-  reset(); G.mode = 'run'; showOverlay(null); showHud(true);
+  reset(); G.shield = upLevel('shield'); G.mode = 'run'; showOverlay(null); showHud(true);
   if (TOUCH) setReticle(innerWidth / 2, innerHeight * 0.42);
-  setTimeout(() => { if (G.mode === 'run' && G.t < 3) pop('CARVE'); }, 500);
+  setTimeout(() => { if (G.mode === 'run' && G.t < 3) pop(LEVEL.name); }, 500);
+}
+// Base camp sits between the title and the run. Choosing another mountain reloads the page with that level.
+function lobby() { initAudio(); if (G.mode === 'finished') reset(); G.mode = 'lobby'; showOverlay(null); showHud(false); openLobby(ride); }
+function ride() {
+  if (save.level !== LEVEL.id) { save.autostart = true; persist(); location.reload(); return; }
+  start();
 }
 function pause() {
   if (G.mode === 'run') { G.mode = 'paused'; cancelDraw(); showOverlay('paused'); showHud(false); silence(); }
@@ -35,18 +45,18 @@ function pause() {
 }
 function finish() {
   G.mode = 'finished'; G.stats.time = G.rtRun; cancelDraw(); silence();
-  setTimeout(() => { if (G.mode === 'finished') { showHud(false); showOverlay('finished'); } }, 1400);
+  const res = settle();
+  setTimeout(() => { if (G.mode === 'finished') { showHud(false); showOverlay('finished', res); } }, 1400);
 }
 
-document.getElementById('start').addEventListener('click', (e) => { e.stopPropagation(); start(); });
+document.getElementById('start').addEventListener('click', (e) => { e.stopPropagation(); if (G.mode === 'title') lobby(); else start(); });
 addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase(); keys.add(k);
   if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
   if (e.repeat) return;
-  if (k === ' ') { if (G.mode === 'run') I.jump = true; else if (G.mode !== 'paused') start(); }
-  if (k === 'enter' && G.mode !== 'run') start();
+  if (k === ' ' || k === 'enter') { if (G.mode === 'run') { if (k === ' ') I.jump = true; } else if (G.mode === 'title') lobby(); else if (G.mode === 'lobby') ride(); else if (G.mode === 'finished' || (k === 'enter' && G.mode === 'paused')) start(); }
   if (k === 'p' || k === 'escape') pause();
-  if (k === 'r') { G.mode = 'title'; start(); }
+  if (k === 'r' && G.mode !== 'lobby' && G.mode !== 'title') { G.mode = 'title'; start(); }
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => { keys.clear(); if (G.mode === 'run' && !G.auto) pause(); });
@@ -83,7 +93,7 @@ const lift = (e) => {
 };
 addEventListener('pointerup', lift); addEventListener('pointercancel', lift);
 document.getElementById('pauseBtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); pause(); });
-document.getElementById('restart').addEventListener('click', (e) => { e.stopPropagation(); G.mode = 'title'; start(); });
+document.getElementById('restart').addEventListener('click', (e) => { e.stopPropagation(); if (G.mode === 'finished') lobby(); else { G.mode = 'title'; start(); } });
 addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('error', (e) => { document.getElementById('error').textContent = `Game error: ${e.message}`; });
 setReticle(innerWidth / 2, innerHeight * 0.42);
@@ -134,12 +144,14 @@ function step(rdt) {
 function frame(now) {
   requestAnimationFrame(frame);
   const rdt = Math.min(0.05, Math.max(0.001, (now - last) / 1000)); last = now;
+  if (G.mode === 'lobby' || G.mode === 'paused') return;   // the last frame stays up behind the menu
   step(rdt); watchPerformance(rdt);
   composer.render();
 }
 
 document.body.classList.toggle('touch', TOUCH);
 reset(); G.rtRun = 0;
-updatePlayer(0.016); showOverlay('title');
+updatePlayer(0.016);
+if (save.autostart) { save.autostart = false; persist(); start(); } else showOverlay('title');
 requestAnimationFrame(frame);
-window.__pl = { G, P, start, reset, camera, composer, enemies, sim: (seconds) => { for (let i = 0; i < seconds * 60 && G.mode === 'run'; i++) step(1 / 60); } };
+window.__pl = { G, P, start, reset, save, camera, composer, enemies, sim: (seconds) => { for (let i = 0; i < seconds * 60 && G.mode === 'run'; i++) step(1 / 60); } };

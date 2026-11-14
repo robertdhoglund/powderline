@@ -65,6 +65,10 @@ export function sfx(kind, n = 0) {
     case 'pump': noise(0.35, 0.16, 'bandpass', 900, 0.8, 0, 2600); break;
     case 'jump': noise(0.18, 0.12, 'bandpass', 700, 0.8, 0, 1800); break;
     case 'land': tone(95, 40, 0.25, 0.4 * (0.4 + n)); noise(0.45, 0.22 * (0.4 + n), 'lowpass', 1300, 0.5, 0, 250); break;
+    case 'throw': noise(0.22, 0.07, 'bandpass', 500, 1, 0, 1500); break;
+    case 'splat': noise(0.3, 0.4, 'lowpass', 1100, 0.6, 0, 200); tone(160, 60, 0.18, 0.25, 'triangle'); break;
+    case 'block': tone(880, 1320, 0.2, 0.12); noise(0.15, 0.15, 'highpass', 3000); break;
+    case 'buy': tone(660, 660, 0.12, 0.1); tone(990, 990, 0.3, 0.1, 'sine', 0.09); break;
     case 'bonk': tone(120, 45, 0.3, 0.45, 'triangle'); noise(0.25, 0.3, 'lowpass', 700); break;
     case 'crack': for (let i = 0; i < 6; i++) noise(0.03, 0.25, 'highpass', 3000 + Math.random() * 3000, 0.7, i * 0.022 + Math.random() * 0.01); break;
     case 'ice':

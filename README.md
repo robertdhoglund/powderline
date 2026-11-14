@@ -1,4 +1,4 @@
-# POWDERLINE (v0.4)
+# POWDERLINE (v0.5)
 
 A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 
@@ -30,6 +30,9 @@ Things to know:
 - **Let go to aim.** With no steering input the board follows the piste by itself.
 - **The arrow lands where the reticle points.** It flies a real arc, but the launch is solved for you, with some magnetism near targets. Hitting the glowing core is a PERFECT.
 - **Focus** (the ring around the reticle) is the slow motion. It drains while you hold a draw and refills on kills. When it is empty, your aim sways.
+- **Goblins throw snowballs** at where you are heading. Carve to dodge.
+- **Rank** is goblins hit, gates made and speed. Slow motion costs time.
+- **Base camp** is where you pick a mountain and buy upgrades with coins.
 - **Spin** by holding a direction in the air.
 - **Ice walls** want an arrow. Riding through one costs speed and your flow multiplier, never the run.
 - **Flow** multiplies every score and fades if nothing happens. A tree bonk resets it.
@@ -40,7 +43,11 @@ Things to know:
 index.html          page shell, HUD markup, import map
 src/main.js         boot, input, game modes, frame loop
 src/config.js       TUNING: the numbers to tweak for feel
-src/course.js       the mountain as data, authored in beats (sections, gates, targets, ice, kickers)
+src/levels.js       the four mountains, each a list of sections
+src/course.js       turns a level into terrain and features, one recipe per kind of section
+src/lobby.js        base camp, upgrades shop, end-of-run scoring
+src/upgrades.js     what the shop sells
+src/store.js        saved coins, upgrades and best ranks
 src/world.js        renderer, bloom, sky, light palette, terrain mesh, trees
 src/player.js       carve physics, air and landings, the posed rider, scarf
 src/camera.js       chase camera
@@ -62,7 +69,7 @@ vendor/three/       Three.js r187 and its bloom passes (MIT)
 
 - `src/config.js` holds the feel numbers: speed, turn rate, piste assist, pump, bow draw time, slow-motion strength, camera.
 - `src/course.js` holds the level. Change a section's steepness or length, or add a `sentry(...)`, `wall(...)`, `kicker(...)` line.
-- `?auto` in the URL turns on the autopilot. `?d=600` starts 600 m down the course.
+- `?auto` in the URL turns on the autopilot. `?d=600` starts 600 m down the course. `?level=alps` picks a mountain (`norway`, `japan`, `alps`, `alaska`).
 - `npm run check` syntax-checks every module. `npm test` runs the smoke test (needs Playwright: `npm i -D playwright && npx playwright install chromium`).
 
 ## Publishing

@@ -18,7 +18,8 @@ export const G = {
 export function resetState() {
   G.t = 0; G.timeScale = 1; G.hitstop = 0; G.shake = 0; G.punch = 0;
   G.score = 0; G.flow = 1; G.flowT = 0;
-  G.stats = { kills: 0, perfect: 0, ice: 0, gates: 0, maxAir: 0, bonks: 0, time: 0, bestFlow: 1 };
+  G.shield = 0; G.frost = 0;
+  G.stats = { hits: 0, kills: 0, perfect: 0, ice: 0, gates: 0, maxAir: 0, bonks: 0, time: 0, bestFlow: 1 };
   G.aim.blend = 0; G.aim.draw = 0; G.aim.drawing = false; G.aim.focus = 1; G.aim.lock = null;
 }
 resetState();

@@ -2,39 +2,20 @@
 // run can be synced to music later. d = distance down the course in metres, u = metres
 // left/right of the course centre line, world z = -d.
 import { T } from './config.js';
+import { LEVEL } from './levels.js';
 import { clamp, smoothstep, rng } from './util.js';
 
-const B = T.beat;
+const B = T.beat, r0 = rng(LEVEL.seed);
 export const sections = [];
 let cursor = 0;
-function sec(name, beats, slope, width, turn, blend = 30) {
-  const s = { name, b0: cursor, beats, slope, width, turn, blend, d0: cursor * B, d1: (cursor + beats) * B };
-  sections.push(s); cursor += beats; return s;
+for (const [name, beats, slope, width, turn, blend = 30] of LEVEL.sections) {
+  sections.push({ name, b0: cursor, beats, slope, width, turn, blend, d0: cursor * B, d1: (cursor + beats) * B }); cursor += beats;
 }
-
-// name, length in beats, steepness (1.0 = 45 degrees), half-width of the piste, how hard the course swings, blend metres
-const START   = sec('start',        5, 0.25, 10, 0.2);
-const FOREST  = sec('forest',      24, 0.42, 10, 1.0);
-const PITCH1  = sec('pitch',        6, 1.00,  9, 0.5, 26);
-const CAMP    = sec('goblin camp', 16, 0.40, 11, 0.6);
-const CHUTE   = sec('chute',        6, 1.20,  7, 0.8);
-const BENCH1  = sec('ice bench',   12, 0.28, 13, 0.12);
-const ICEFALL = sec('icefall',      4, 1.30, 10, 0.2, 18);
-const WHOOPS  = sec('rollers',     10, 0.45, 10, 0.3);
-const CANYON  = sec('canyon',      26, 0.50,  8, 1.15);
-const CLIFFS  = sec('cliff bands', 10, 0.55, 10, 0.4);
-const PITCH2  = sec('pitch',        5, 1.10,  9, 0.5, 28);
-const BENCH2  = sec('ice bench',   12, 0.30, 13, 0.12);
-const PARK    = sec('jump park',   16, 0.42, 11, 0.25);
-const GORGE   = sec('gorge',       20, 0.60,  8, 1.1);
-const PLUNGE  = sec('plunge',       5, 1.35,  9, 0.3, 24);
-const RUNOUT  = sec('runout',       8, 0.10, 14, 0.1, 40);
-
 export const LENGTH = cursor * B;
-export const FINISH = (RUNOUT.b0 + 2.5) * B;
+export const FINISH = (sections[sections.length - 1].b0 + 2.5) * B;
 
 // ---- features ---------------------------------------------------------------------------
-// sentries are goblins: h < 4 stands on a watchtower, higher ones hang under a lantern balloon. pacers are sled raiders.
+// sentries are goblins: tower ones stand on a watchtower, the others hang under a lantern balloon. pacers are sled raiders.
 export const gates = [], sentries = [], pacers = [], kickers = [], drops = [], ravines = [], sheets = [], walls = [], islands = [], flags = [], torches = [];
 const at = (s, b) => (s.b0 + b) * B;
 const gate = (s, b, u) => gates.push({ d: at(s, b), u });
@@ -47,75 +28,55 @@ const ravine = (s, b, width = 9, depth = 3.5) => ravines.push({ d: at(s, b), wid
 const sheet = (s, b, beats, u, w) => sheets.push({ d: at(s, b + beats / 2), len: beats * B, u, w });
 const wall = (s, b, u = 0, w = 14, h = 4.6) => walls.push({ d: at(s, b), u, w, h });
 const island = (s, b, u) => islands.push({ d: at(s, b), u });
-const slalom = (s, from, to, step, amp) => { let k = 1; for (let b = from; b <= to; b += step) { gate(s, b, k * amp); k = -k; } };
+const slalom = (s, from, to, step, amp) => { let k = r0() < 0.5 ? 1 : -1; for (let b = from; b <= to; b += step) { gate(s, b, k * amp); k = -k; } };
 
-// Forest: gates swing around tree islands, lookouts on the edges.
-slalom(FOREST, 3, 21, 2, 4.5); gate(FOREST, 23, 0);
-[6, 10, 14, 18].forEach((b, i) => island(FOREST, b, i % 2 ? -1 : 1.5));
-tower(FOREST, 8, 1); tower(FOREST, 12.5, -1); balloon(FOREST, 16, 0, 4.8); tower(FOREST, 20, 1);
-
-gate(PITCH1, 1.5, -2.5); gate(PITCH1, 3, 2.5); gate(PITCH1, 4.5, -1.5);
-balloon(PITCH1, 5, 0, 5.2);
-
-// Goblin camp: kickers with balloons over the landings, raiders, the first ice wall.
-tower(CAMP, 1.2, -1); tower(CAMP, 1.6, 1);
-kicker(CAMP, 3); balloon(CAMP, 4.5, -1, 5.6); balloon(CAMP, 5.0, 3.5, 4.6);
-pacer(CAMP, 5.4);
-kicker(CAMP, 8, 1.7); balloon(CAMP, 9.5, -3.5, 5.6); balloon(CAMP, 9.9, 2, 4.4);
-tower(CAMP, 10.6, 1); pacer(CAMP, 11);
-kicker(CAMP, 12.5, 1.5); balloon(CAMP, 13.8, 0, 6);
-wall(CAMP, 15);
-
-slalom(CHUTE, 1, 5, 1.4, 2.2);
-
-// Ice bench: sheets to ride, walls to shoot, then the launch over the icefall.
-sheet(BENCH1, 1.6, 2.2, -2, 10);
-wall(BENCH1, 4.8);
-balloon(BENCH1, 6.0, 5, 3.9); balloon(BENCH1, 6.2, 7, 5.2); balloon(BENCH1, 6.4, 5.5, 6.6);
-sheet(BENCH1, 6.6, 2.4, -3, 10);
-pacer(BENCH1, 7);
-wall(BENCH1, 10);
-kicker(BENCH1, 11.35, 1.9, 13);
-balloon(ICEFALL, 0.9, 0, 9); balloon(ICEFALL, 1.9, -4, 8); balloon(ICEFALL, 2.9, 4, 7);
-
-// Rollers: a rhythm of small airs.
-for (let i = 0; i < 5; i++) { kickers.push({ d: at(WHOOPS, 1.5 + i * 1.7), h: 0.95, len: 8 }); if (i % 2) balloon(WHOOPS, 2.4 + i * 1.7, (i - 2) * 1.5, 4.6); }
-tower(WHOOPS, 9, -1);
-
-// Canyon: tight turns between rock walls. Gates sit on the apexes, lookouts on the outside.
-slalom(CANYON, 2, 24, 2, 3.2);
-[4, 9, 14, 19, 23.5].forEach((b, i) => tower(CANYON, b, i % 2 ? 1 : -1));
-balloon(CANYON, 7, 0, 5); balloon(CANYON, 12, -2, 5.4); balloon(CANYON, 17, 2, 5); pacer(CANYON, 10.5); pacer(CANYON, 20);
-kicker(CANYON, 15.5, 1.4, 10);
-
-// Cliff bands: three drops with targets hanging in the fall line.
-drop(CLIFFS, 2, 5); balloon(CLIFFS, 2.9, 0, 6.5);
-drop(CLIFFS, 5, 6.5); balloon(CLIFFS, 5.9, -3, 7); balloon(CLIFFS, 6.1, 3, 6);
-drop(CLIFFS, 8, 8); balloon(CLIFFS, 9, 0, 8);
-tower(CLIFFS, 3.6, 1); tower(CLIFFS, 6.8, -1);
-
-gate(PITCH2, 1, 2.5); gate(PITCH2, 2.5, -2.5); gate(PITCH2, 4, 2);
-balloon(PITCH2, 3.4, 0, 5.4);
-
-pacer(BENCH2, 0.6);
-sheet(BENCH2, 1.4, 2.8, 1, 11);
-wall(BENCH2, 5.2); wall(BENCH2, 6.8);
-sheet(BENCH2, 7.4, 2.4, -1, 11);
-balloon(BENCH2, 8.6, -6, 3.9); balloon(BENCH2, 9, 6, 3.9); tower(BENCH2, 10.5, 1); tower(BENCH2, 10.9, -1);
-
-// Jump park: four kickers, each bigger than the last, balloons strung over every landing.
-[[2, 2.0, 10], [5.5, 2.6, 11], [9, 3.2, 12], [12.8, 3.8, 13]].forEach(([b, h, len], i) => {
-  kicker(PARK, b, h, len); if (i % 2) ravine(PARK, b + 0.35, 9 + i * 2);
-  for (let k = 0; k < 2 + (i > 1 ? 1 : 0); k++) balloon(PARK, b + 1.0 + k * 0.42, (k - 1) * 2.6 * (i % 2 ? -1 : 1), 5.5 + i * 0.9 - k * 0.5);
-});
-pacer(PARK, 7); wall(PARK, 15.3, 0, 16, 5.2);
-
-// Gorge: the last hard carving, then the plunge.
-slalom(GORGE, 2, 18, 2, 3.2);
-[3, 7.5, 12, 16.5].forEach((b, i) => tower(GORGE, b, i % 2 ? -1 : 1));
-balloon(GORGE, 5, 0, 5); balloon(GORGE, 10, 2, 5.5); balloon(GORGE, 14.5, -2, 5); pacer(GORGE, 8.5); pacer(GORGE, 15);
-kicker(GORGE, 11, 1.5, 10);
-balloon(PLUNGE, 1.6, -3, 6); balloon(PLUNGE, 2.6, 3, 6); balloon(PLUNGE, 3.6, 0, 6.5);
+// What each kind of section contains. n = length in beats.
+const recipes = {
+  start() {}, runout() {},
+  slalom(s, n) { // gates swing around tree islands, lookouts on the edges
+    const amp = Math.min(4.5, s.width - 4.8);
+    slalom(s, 3, n - 3, 2, amp); gate(s, n - 1, 0);
+    if (s.width >= 10) for (let b = 6; b < n - 4; b += 4) island(s, b, (r0() - 0.5) * 3);
+    let side = 1; for (let b = 4; b < n - 2; b += 4.5) { tower(s, b + r0(), side); side = -side; }
+    for (let b = 7; b < n - 3; b += 5.5) balloon(s, b, (r0() - 0.5) * 5, 4.8 + r0());
+    if (n >= 18) { pacer(s, n * 0.4); if (n >= 24) pacer(s, n * 0.75); }
+    if (n >= 20 && s.width < 10) kicker(s, n * 0.58, 1.45, 10);
+  },
+  pitch(s, n) { slalom(s, 1.5, n - 1.5, 1.5, 2.5); balloon(s, n - 1, 0, 5.2); },
+  chute(s, n) { slalom(s, 1, n - 1, 1.4, 2.2); },
+  camp(s, n) { // kickers with balloons over the landings, raiders, an ice wall at the gate
+    tower(s, 1.2, -1); tower(s, 1.6, 1);
+    for (let b = 3, i = 0; b < n - 3.5; b += 4.6, i++) {
+      kicker(s, b, 1.5 + (i % 2) * 0.2); balloon(s, b + 1.5, (r0() - 0.5) * 4, 5.6); balloon(s, b + 2, (r0() - 0.5) * 7, 4.5);
+      pacer(s, b + 2.4); if (i % 2) tower(s, b + 2.8, i % 4 === 1 ? 1 : -1);
+    }
+    wall(s, n - 1);
+  },
+  ice(s, n, next) { // sheets to ride, walls to shoot, then a launch if a drop follows
+    sheet(s, 1.6, 2.2, -2, 10); wall(s, 4.8);
+    balloon(s, 6.0, 5, 3.9); balloon(s, 6.2, 7, 5.2); balloon(s, 6.4, 5.5, 6.6);
+    sheet(s, 6.6, 2.4, -3, 10); pacer(s, 7); wall(s, n - 2.2);
+    if (n >= 14) { balloon(s, n - 4, -6, 3.9); balloon(s, n - 3.6, 6, 3.9); }
+    if (next && next.name === 'fall') kicker(s, n - 0.65, 1.9, 13);
+  },
+  fall(s, n) { for (let i = 0; i < 3; i++) balloon(s, 0.9 + i * (n - 1.2) / 3, [0, -4, 4][i], 9 - i); },
+  rollers(s, n) { // a rhythm of small airs
+    for (let b = 1.5, i = 0; b < n - 1.5; b += 1.7, i++) { kickers.push({ d: at(s, b), h: 0.95, len: 8 }); if (i % 2) balloon(s, b + 0.9, (r0() - 0.5) * 6, 4.6); }
+    tower(s, n - 1, -1); if (n >= 12) tower(s, n * 0.5, 1);
+  },
+  cliffs(s, n) { // drops with targets hanging in the fall line
+    let side = 1;
+    for (let b = 2, i = 0; b < n - 1.5; b += 3, i++) { drop(s, b, 5 + i * 1.5); balloon(s, b + 0.9, (r0() - 0.5) * 6, 6.5 + i * 0.5); if (i % 2) balloon(s, b + 1.1, (r0() - 0.5) * 6, 6); tower(s, b + 1.7, side); side = -side; }
+  },
+  park(s, n) { // kickers, each bigger than the last, balloons strung over every landing
+    for (let i = 0, b = 2; b < n - 2.5; i++, b += 3.6) {
+      kicker(s, b, 2.0 + i * 0.6, 10 + i); if (i % 2) ravine(s, b + 0.35, 9 + i * 2);
+      for (let k = 0; k < 2 + (i > 1 ? 1 : 0); k++) balloon(s, b + 1.0 + k * 0.42, (k - 1) * 2.6 * (i % 2 ? -1 : 1), 5.5 + i * 0.9 - k * 0.5);
+    }
+    pacer(s, n * 0.45); wall(s, n - 0.7, 0, 16, 5.2);
+  },
+};
+sections.forEach((s, i) => recipes[s.name](s, s.beats, sections[i + 1]));
 
 // ---- terrain shape ----------------------------------------------------------------------
 function profile(d, key) {
@@ -185,7 +146,8 @@ export const sectionAt = (d) => sections.find((s) => d < s.d1) || sections[secti
 export const trees = [];
 {
   const r = rng(4177);
-  for (let i = 0; i < 2300; i++) {
+  const count = Math.round((D_MAX - D_MIN) * 0.72 * (LEVEL.treeDensity || 1));
+  for (let i = 0; i < count; i++) {
     const d = D_MIN + 20 + r() * (D_MAX - D_MIN - 40);
     const a = 2.5 + Math.pow(r(), 1.7) * 78, side = r() < 0.5 ? -1 : 1;
     const x = cx(d) + side * (widthAt(d) + a), s = 0.75 + r() * 0.9 + a * 0.008;

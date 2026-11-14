@@ -171,6 +171,7 @@ export function updatePlayer(dt) {
     let a = T.gravity * sAlong / Math.sqrt(1 + sAlong * sAlong);
     a -= T.dragQuad * (tuck ? T.tuckDrag : 1) * P.v * P.v + T.carveScrub * Math.abs(P.edge) * P.v + T.brakeDecel * P.brake;
     if (P.onIce) a += 6;
+    if (tuck) a += T.tuckPush;
     const over = Math.abs(P.u) - widthAt(P.d) - 9; if (over > 0) a -= over * 1.6;
     P.v = clamp(P.v + a * dt, G.mode === 'finished' ? 0 : T.minSpeed, T.maxSpeed);
     // Pump: hold an edge, then let it go, and the board squirts forward.

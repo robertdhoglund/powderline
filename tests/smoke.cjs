@@ -18,7 +18,7 @@ const server = http.createServer((req, res) => {
   page.on('pageerror', (e) => errors.push(String(e.stack || e)));
   await page.goto(`http://localhost:${server.address().port}/?auto`);
   await page.waitForFunction(() => window.__pl);
-  await page.click('#start');
+  await page.click('#start'); await page.click('#ride');
   const run = await page.evaluate(() => {
     const { G, sim } = window.__pl;
     for (let i = 0; i < 1400 && G.mode === 'run'; i++) sim(0.25);

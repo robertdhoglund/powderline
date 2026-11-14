@@ -7,6 +7,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { clamp, lerp, rng } from './util.js';
 import { height, cx, widthAt, slopeAt, trees, D_MIN, D_MAX, FINISH } from './course.js';
+import { LEVEL } from './levels.js';
 
 export const TOUCH = matchMedia('(pointer: coarse)').matches;
 export const scene = new THREE.Scene();
@@ -66,11 +67,14 @@ const DUSK = { top: C('#1b1450'), mid: C('#7a3a8c'), hor: C('#ff9a72'), sun: C('
 const GLOW = { top: C('#120c40'), mid: C('#5a2890'), hor: C('#ff5c9f'), sun: C('#ffe2ec'), halo: C('#ff3a8a'), sky: C('#8478ea'), gnd: C('#3b2c86'), light: C('#ff98be'), shade: C('#5a4fc4'), stars: 0.55, aurora: 0.15 };
 const NIGHT = { top: C('#030821'), mid: C('#0e3568'), hor: C('#36d9cb'), sun: C('#ecffff'), halo: C('#2fcfdc'), sky: C('#4f86e6'), gnd: C('#1a2760'), light: C('#aef2ff'), shade: C('#2a55b8'), stars: 1.0, aurora: 1 };
 const DAWN = { top: C('#27407e'), mid: C('#c96a8a'), hor: C('#ffc46a'), sun: C('#fff6d8'), halo: C('#ff9a3a'), sky: C('#b9a8e8'), gnd: C('#5a4a8e'), light: C('#ffd0a0'), shade: C('#6a6ac8'), stars: 0.1, aurora: 0 };
-const PAL = [[0, DUSK], [0.2, DUSK], [0.34, GLOW], [0.46, GLOW], [0.6, NIGHT], [0.8, NIGHT], [0.93, DAWN], [1.5, DAWN]];
+const MORNING = { top: C('#3565c4'), mid: C('#eea2b6'), hor: C('#ffe2b4'), sun: C('#fff8e4'), halo: C('#ffae6a'), sky: C('#c6d2ff'), gnd: C('#7078c4'), light: C('#ffe0bc'), shade: C('#8088e0'), stars: 0, aurora: 0, gain: 0.86 };
+const DAY = { top: C('#0f48c8'), mid: C('#3f8cf0'), hor: C('#a4ceff'), sun: C('#ffffff'), halo: C('#9cc8ff'), sky: C('#cfe0ff'), gnd: C('#6f8cd8'), light: C('#fff2dc'), shade: C('#5f80e8'), stars: 0, aurora: 0, gain: 0.72 };
+const NAMED = { DUSK, GLOW, NIGHT, DAWN, MORNING, DAY };
+const PAL = LEVEL.pal.map(([p, name]) => [p, NAMED[name]]);
 const KEYS = ['top', 'mid', 'hor', 'sun', 'halo', 'sky', 'gnd', 'light', 'shade'];
-export const pal = { top: C(0), mid: C(0), hor: C(0), sun: C(0), halo: C(0), sky: C(0), gnd: C(0), light: C(0), shade: C(0), fog: C(0), stars: 0, aurora: 0 };
+export const pal = { gain: 1, top: C(0), mid: C(0), hor: C(0), sun: C(0), halo: C(0), sky: C(0), gnd: C(0), light: C(0), shade: C(0), fog: C(0), stars: 0, aurora: 0 };
 
-export const sunDir = new THREE.Vector3(0.24, 0.12, -1).normalize();
+export const sunDir = new THREE.Vector3(0.24, LEVEL.sunY, -1).normalize();
 const sunView = new THREE.Vector3();
 const hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 1.55);
 const sun = new THREE.DirectionalLight(0xffffff, 2.3);
@@ -245,7 +249,7 @@ const shadowTex = (() => {
 // ---- trees: layered, snow-laden firs --------------------------------------------------------
 function firGeometry(tiers, girth, seed) {
   const r = rng(seed), pos = [], col = [];
-  const dark = new THREE.Color('#141240'), mid = new THREE.Color('#2b2a72'), snow = new THREE.Color('#d6d0ff'), frost = new THREE.Color('#2f2c80'), bark = new THREE.Color('#0d0b26');
+  const dark = new THREE.Color(LEVEL.tree ? LEVEL.tree[0] : '#141240'), mid = new THREE.Color('#2b2a72'), snow = new THREE.Color('#d6d0ff'), frost = new THREE.Color(LEVEL.tree ? LEVEL.tree[1] : '#2f2c80'), bark = new THREE.Color('#0d0b26');
   const tri = (a, b, c, ca, cb, cc) => { pos.push(...a, ...b, ...c); col.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b, cc.r, cc.g, cc.b); };
   for (let i = 0; i < 6; i++) { // trunk
     const a0 = i / 6 * 6.283, a1 = (i + 1) / 6 * 6.283, p = (a, y, rad) => [Math.cos(a) * rad, y, Math.sin(a) * rad];
@@ -302,7 +306,7 @@ function firGeometry(tiers, girth, seed) {
     for (let j = 0; j < 3; j++) col.push(c.r, c.g, c.b);
   }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  const N = 560, mat = rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 0.45, 2.5), o = new THREE.Object3D(), lists = new Map();
+  const N = LEVEL.rocks || 560, mat = rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 0.45, 2.5), o = new THREE.Object3D(), lists = new Map();
   for (let i = 0; i < N; i++) {
     let d = 0; for (let tries = 0; tries < 6; tries++) { d = D_MIN + 30 + r() * (D_MAX - D_MIN - 60); if (r() < slopeAt(d) * 0.9) break; }
     const steep = slopeAt(d), a = 3.5 + Math.pow(r(), 1.4) * 40, x = cx(d) + (r() < 0.5 ? -1 : 1) * (widthAt(d) + a), z = -d, s = (1.2 + r() * 2.6) * (1 + steep) * (0.7 + a * 0.02);
@@ -319,7 +323,8 @@ export function updateWorld(d, time, speed = 0) {
   let i = 0; while (i < PAL.length - 2 && p > PAL[i + 1][0]) i++;
   const a = PAL[i][1], b = PAL[i + 1][1], t = clamp((p - PAL[i][0]) / (PAL[i + 1][0] - PAL[i][0]), 0, 1);
   for (const k of KEYS) pal[k].copy(a[k]).lerp(b[k], t);
-  pal.stars = lerp(a.stars, b.stars, t); pal.aurora = lerp(a.aurora, b.aurora, t);
+  pal.stars = lerp(a.stars, b.stars, t); pal.aurora = lerp(a.aurora, b.aurora, t); pal.gain = lerp(a.gain || 1, b.gain || 1, t);
+  hemi.intensity = 1.55 * pal.gain; sun.intensity = 2.3 * pal.gain;
   pal.fog.copy(pal.hor).lerp(pal.mid, 0.12);
   scene.fog.color.copy(pal.fog);
   hemi.color.copy(pal.sky); hemi.groundColor.copy(pal.gnd); sun.color.copy(pal.light);

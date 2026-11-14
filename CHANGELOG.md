@@ -1,5 +1,37 @@
 # Changes and handoffs
 
+## v0.5 | 2026-11-14 | Claude
+
+Snowballs, a lobby with upgrades, four mountains, and scoring rebuilt around goblins, gates and speed.
+
+**Changed**
+
+- **Goblins throw snowballs.** Lookouts and balloon goblins throw as you come into range; raiders keep throwing. Each ball is aimed where you will be if you hold your line, so carving dodges it. A hit costs speed and your flow multiplier and frosts the screen for a moment. It never ends the run.
+- **Base camp.** A lobby between the title and the run: pick a mountain, spend coins, ride. Coins come from score plus a rank bonus.
+- **Upgrades.** Quick Draw, Deep Focus, True Aim, Board Wax, Snow Shield (three levels each) and Triple Shot (two extra arrows that seek nearby goblins).
+- **Four mountains.** Trollheim (Norway, dusk to dawn), Kitsune Ridge (Japan, morning), Couloir Noir (France, bluebird day), Aurora Spines (Alaska, midnight). Each has its own layout, light, sun height and snowball rate. Finish one with rank C to open the next.
+- **Levels are data.** `src/levels.js` lists each mountain as sections; `src/course.js` fills each section from a recipe (slalom, camp, ice, cliffs, park and so on).
+- **Scoring.** The rank is 40% goblins hit, 25% gates made, 35% speed. The clock is real time, so slow motion costs time. A needs most goblins, nearly every gate and a fast run; S needs close to everything.
+- **Tuck is faster.** `W` now cuts drag harder and adds a push.
+- **Saves.** Coins, upgrades, best ranks and the chosen level are kept in the browser.
+- Menus no longer redraw the 3D scene behind them.
+
+**Tested**
+
+- `npm run check` and `npm test` pass. The autopilot (hits 72 of 75 goblins and every gate, but never tucks and aims in slow motion) gets rank B on Trollheim.
+- Lobby, buying an upgrade, the finish screen and coin payout were exercised in a headless browser.
+- A frame from each of the four levels was reviewed.
+- **Not tested: switching mountains inside the published page on a real phone.** Switching reloads the page and starts the run; if the page cannot reload itself there, you stay on the current mountain.
+
+**Known issues**
+
+- The smoke test only covers Trollheim. The other three were run once each under autopilot (Japan and France to the finish, Alaska for its first two minutes) with no errors.
+- Upgrade prices, coin payouts and rank lines are first guesses.
+- The countries differ in light and layout, not yet in scenery (no torii gates, chalets and so on).
+- No music yet.
+
+---
+
 ## v0.4 | 2026-11-14 | Claude
 
 Kasper's round: goblins, a new hero, fresher snow, a longer and turnier mountain with more jumps.

@@ -73,3 +73,43 @@ body.touch #reticle { transform-origin: 0 0; }
   #stats { gap: 16px; margin-bottom: 16px; } #stats div b { font-size: 19px; } #stats div span { font-size: 8px; } #helpTouch { margin-top: 16px; font-size: 9px; line-height: 1.9; }
 }
 @media (prefers-reduced-motion: reduce) { #pop.show { animation-duration: .01s; opacity: 1; } }
+
+#frost { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at 50% 55%, rgba(255, 255, 255, 0) 22%, rgba(236, 244, 255, .92) 78%); }
+#shield { margin-top: 8px; font-size: 11px; font-weight: 700; letter-spacing: .25em; color: var(--ice); min-height: 14px; }
+#stats div.big b { font-size: 34px; }
+#stats div.big em { display: block; width: 120px; height: 3px; margin: 8px auto 0; background: rgba(255, 255, 255, .2); }
+#stats div.big u { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--hot)); }
+#overlay.finished #restart { display: block; }
+
+#lobby { position: fixed; inset: 0; display: none; overflow-y: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch; background: linear-gradient(180deg, rgba(14, 8, 52, .86), rgba(20, 10, 60, .94)); }
+#lobby.show { display: block; animation: fade .35s both; }
+.lobbyIn { max-width: 1040px; margin: 0 auto; padding-block: 28px 40px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+#lobby header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 18px; }
+#lobby small { font-size: 10px; letter-spacing: .34em; font-weight: 700; opacity: .7; display: block; }
+#lobby h2 { margin: 6px 0 0; font-size: clamp(20px, 3.4vw, 34px); font-weight: 200; letter-spacing: .16em; }
+#lobby h3 { margin: 26px 0 12px; font-size: 11px; letter-spacing: .4em; font-weight: 700; opacity: .7; }
+.purse { text-align: right; } .purse b { font-size: 30px; font-weight: 200; color: var(--gold); font-variant-numeric: tabular-nums; }
+#levels, #shop { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+#lobby button { font: inherit; color: var(--ink); text-align: left; cursor: pointer; border-radius: 14px; border: 1px solid rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .06); padding: 14px 16px; min-width: 0; transition: transform .12s, background .12s, border-color .12s; }
+#lobby button:not(:disabled):hover { transform: translateY(-2px); background: rgba(255, 255, 255, .12); }
+#lobby button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+#lobby button:disabled { cursor: default; opacity: .45; }
+.lv b { display: block; font-size: 19px; font-weight: 700; letter-spacing: .12em; margin: 8px 0 10px; }
+.lv span, .up span { font-size: 10px; letter-spacing: .2em; font-weight: 700; color: var(--gold); }
+.lv.on { border-color: var(--gold) !important; background: rgba(255, 196, 107, .14) !important; box-shadow: 0 0 30px rgba(255, 170, 90, .25); }
+.up b { display: block; font-size: 13px; letter-spacing: .2em; } .up small { margin: 6px 0 8px; letter-spacing: .06em !important; font-weight: 400 !important; font-size: 12px !important; opacity: .85 !important; }
+.up i { font-style: normal; letter-spacing: .3em; color: var(--ice); display: block; margin-bottom: 6px; font-size: 11px; }
+.up.full { opacity: .7 !important; } .up.full span { color: var(--ice); }
+#lobby #ride { display: block; margin: 30px auto 0; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: .4em; padding: 18px 46px; color: #1b1450; background: #fff; border: 0; border-radius: 40px; box-shadow: 0 0 40px rgba(255, 120, 150, .6); }
+#lobby #ride:hover { background: #fff; transform: scale(1.04); }
+@media (max-height: 520px), (max-width: 760px) {
+  .lobbyIn { padding-block: 12px 86px; }
+  #lobby header { margin-bottom: 10px; } #lobby h2 { font-size: 17px; margin-top: 2px; } .purse b { font-size: 22px; }
+  #levels, #shop { gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  #lobby button { padding: 9px 11px; border-radius: 10px; }
+  .lv b { font-size: 13px; margin: 4px 0 5px; } #lobby small { font-size: 8px; letter-spacing: .2em; } .lv span, .up span { font-size: 8px; }
+  .up b { font-size: 11px; } .up small { font-size: 10px !important; margin: 3px 0 4px; } .up i { margin-bottom: 3px; }
+  #lobby h3 { margin: 12px 0 8px; font-size: 9px; }
+  #lobby #ride { position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom, 0px) + 8px); transform: translateX(-50%); margin: 0; padding: 13px 34px; font-size: 12px; white-space: nowrap; }
+  #lobby #ride:hover { transform: translateX(-50%); }
+}
