@@ -39,7 +39,9 @@ export function updateCamera(rdt) {
     G.shake = Math.max(0, G.shake - rdt * 1.9);
   }
   fov = damp(fov, T.fovBase + sp * T.fovSpeed - aim * T.fovAim, snap ? 1e4 : 4.5, rdt);
-  camera.fov = fov; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+  // On a tall screen, widen the lens so the piste still fits side to side.
+  camera.fov = camera.aspect < 1.3 ? Math.min(104, 2 * Math.atan(Math.tan(fov * Math.PI / 360) * 1.3 / camera.aspect) * 180 / Math.PI) : fov;
+  camera.updateProjectionMatrix(); camera.updateMatrixWorld();
   snap = false;
 }
 

@@ -1,4 +1,4 @@
-# POWDERLINE (v0.2)
+# POWDERLINE (v0.3)
 
 A browser game: carve down a steep mountain at dusk, draw a bow in slow motion, shatter ice. One run takes about a minute. The goal is **feel first, features second**.
 
@@ -21,6 +21,8 @@ Then open `http://localhost:8000` in a desktop browser. Do not open `index.html`
 | Shoot | release |
 | Cancel a shot | right click |
 | Pause / restart | `P` / `R` |
+
+On a phone: left thumb drags to steer (up tucks, down brakes); right thumb holds and drags to aim, releases to shoot, and taps to jump.
 
 Things to know:
 
@@ -49,6 +51,7 @@ src/fx.js           debris, shockwaves, ribbons, hit-stop, shake
 src/hud.js          score, flow, reticle, screens
 src/audio.js        small synthesized sound set (no music yet)
 tests/smoke.cjs     autopilot rides the whole run in fast-forward
+tools/build-artifact.mjs  packs the game into one HTML file
 vendor/three/       Three.js r187 and its bloom passes (MIT)
 ```
 
@@ -61,7 +64,7 @@ vendor/three/       Three.js r187 and its bloom passes (MIT)
 
 ## Publishing
 
-The folder is a static site. GitHub Pages or any static host works as is.
+The folder is a static site. GitHub Pages or any static host works as is. `npm run artifact` also packs the whole game into one file, `dist/powderline.html`.
 
 ## Working with more than one AI
 

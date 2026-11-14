@@ -1,13 +1,14 @@
 {
   "name": "powderline",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "Snowboarding, archery and shattering ice in the browser",
   "scripts": {
     "dev": "python3 -m http.server 8000",
     "check": "for f in src/*.js; do node --check $f || exit 1; done",
-    "test": "node tests/smoke.cjs"
+    "test": "node tests/smoke.cjs",
+    "artifact": "node tools/build-artifact.mjs"
   },
   "license": "UNLICENSED"
 }

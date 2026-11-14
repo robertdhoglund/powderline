@@ -2,7 +2,7 @@
 // cells; on impact, cracks race outward from the hit point and the cells let go in a wave.
 import * as THREE from 'three';
 import { G } from './state.js';
-import { scene } from './world.js';
+import { scene, sunDir, pal } from './world.js';
 import { height, cx, dcx, sheets, walls } from './course.js';
 import { P } from './player.js';
 import { burst, ring, shake, hitstop } from './fx.js';
@@ -12,7 +12,28 @@ import { sfx } from './audio.js';
 import { rng, rand } from './util.js';
 
 const CYAN = new THREE.Color('#7af3ff').multiplyScalar(2.2);
-const iceMat = new THREE.MeshStandardMaterial({ color: '#9cf4ff', emissive: '#1aa6d6', emissiveIntensity: 0.85, roughness: 0.12, metalness: 0.15, transparent: true, opacity: 0.74, flatShading: true, side: THREE.DoubleSide });
+// Glassy ice: see-through face-on, bright and milky at glancing angles, with a hard sun glint per facet.
+const iceMat = new THREE.ShaderMaterial({
+  transparent: true, side: THREE.DoubleSide, fog: true,
+  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uSun: { value: sunDir }, uLight: { value: new THREE.Color() }, uDeep: { value: new THREE.Color('#0a63b0') }, uEdge: { value: new THREE.Color('#62e9ff') } }]),
+  vertexShader: `varying vec3 vWp; varying vec3 vLp;
+    #include <fog_pars_vertex>
+    void main(){ vLp = position; vec4 wp = modelMatrix * vec4(position, 1.0); vWp = wp.xyz; vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
+    #include <fog_vertex>
+    }`,
+  fragmentShader: `uniform vec3 uSun, uLight, uDeep, uEdge; varying vec3 vWp; varying vec3 vLp;
+    #include <fog_pars_fragment>
+    void main(){
+      vec3 n = normalize(cross(dFdx(vWp), dFdy(vWp))), v = normalize(cameraPosition - vWp);
+      float f = pow(1.0 - abs(dot(n, v)), 2.2);
+      float frost = 0.5 + 0.5 * sin(vLp.x * 3.1 + sin(vLp.z * 2.3) * 2.0) * sin(vLp.z * 2.7 + vLp.x);
+      vec3 col = mix(uDeep, uEdge * 1.15, clamp(f * 0.8 + frost * 0.14, 0.0, 0.85));
+      float spec = min(1.0, pow(max(dot(reflect(-v, n), uSun), 0.0), 90.0) + pow(max(dot(reflect(-v, -n), uSun), 0.0), 90.0));
+      col += uLight * spec * 1.1 + uLight * 0.06;
+      gl_FragColor = vec4(col, mix(0.55, 0.95, clamp(f + spec, 0.0, 1.0)));
+      #include <fog_fragment>
+    }`,
+});
 const r = rng(555);
 export const panels = [];
 
@@ -102,6 +123,7 @@ export function breakPanel(p, at, impulse, byArrow) {
 
 let prevSide = new Map();
 export function updateIce(dt) {
+  iceMat.uniforms.uLight.value.copy(pal.light);
   for (const p of panels) {
     if (Math.abs(-p.O.z - P.d) > 260 && p.state !== 1) continue;
     const [a, b, n] = local(p, P.pos);

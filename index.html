@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="theme-color" content="#1b1450" />
   <title>Powderline</title>
   <link rel="stylesheet" href="./src/style.css" />
@@ -21,6 +21,8 @@
     </div>
     <div id="speedBox"><span id="speed">0</span><small>KM/H</small></div>
     <div id="pop"></div>
+    <button id="pauseBtn" aria-label="Pause">II</button>
+    <div id="touchHint"><span>DRAG TO STEER</span><span>HOLD TO AIM · TAP TO JUMP</span></div>
   </div>
   <div id="reticle" class="hidden">
     <svg viewBox="0 0 44 44"><circle id="focusArc" cx="22" cy="22" r="18" /></svg>
@@ -33,6 +35,8 @@
       <p id="tagline">Carve the powder. Draw the bow. Shatter the ice.</p>
       <div id="stats"></div>
       <button id="start">DROP IN</button>
+      <button id="restart">RESTART</button>
+      <p id="helpTouch"><b>LEFT THUMB</b> drag to steer · up to tuck · down to brake<br><b>RIGHT THUMB</b> hold and drag to aim · release to shoot · tap to jump<br>Turn your phone sideways for the wide view.</p>
       <p id="help"><b>A D</b> carve &nbsp; <b>W</b> tuck &nbsp; <b>S</b> brake &nbsp; <b>SPACE</b> jump &nbsp; <b>HOLD MOUSE</b> draw · release to shoot &nbsp; <b>RIGHT CLICK</b> cancel &nbsp; <b>P</b> pause &nbsp; <b>R</b> restart</p>
       <p id="error" role="alert"></p>
     </div>

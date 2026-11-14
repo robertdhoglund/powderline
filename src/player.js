@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { T } from './config.js';
 import { height, grad, cx, dcx, widthAt, trees } from './course.js';
-import { scene } from './world.js';
+import { scene, rim } from './world.js';
 import { clamp, damp, lerp, rand, wrapPi } from './util.js';
 import * as snow from './snow.js';
 import { Ribbon, shake, arrowMesh } from './fx.js';
@@ -21,12 +21,14 @@ const solids = trees.filter((t) => t.solid);
 
 // ---- model ------------------------------------------------------------------------------
 export const rider = new THREE.Group(); rider.rotation.order = 'YXZ'; rider.scale.setScalar(1.42); scene.add(rider);
-const lam = (c, e = 0) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, emissive: c, emissiveIntensity: e });
+const lam = (c, e = 0, k = 0.8) => rim(new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: e }), k, 2.2);
 const glow = (c, k) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) });
-const M = { suit: lam('#352c8a', 0.25), jacket: lam('#ff6a48', 0.55), dark: lam('#0f0d2b'), bone: lam('#efe6ff'), hot: glow('#ff3d7f', 2.4), visor: glow('#7af3ff', 1.8), gold: glow('#ffc46b', 2.6), bowGlow: glow('#fff1dc', 1.25) };
-const box = (w, h, d, m, parent = rider) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); parent.add(o); return o; };
-const limbGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
-const limb = (r, m, r2 = r) => { const o = new THREE.Mesh(r2 === r ? limbGeo : new THREE.CylinderGeometry(r2 / r, 1, 1, 6), m); o.userData.r = r; rider.add(o); return o; };
+const M = { suit: lam('#3a3096', 0.28), jacket: lam('#ff6a48', 0.5), dark: lam('#131033', 0.1), hot: glow('#ff3d7f', 2.4), visor: glow('#7af3ff', 1.9), gold: glow('#ffc46b', 2.6), bowGlow: glow('#fff1dc', 1.25) };
+const add = (geo, m, parent = rider) => { const o = new THREE.Mesh(geo, m); parent.add(o); return o; };
+const ball = (r, m, parent = rider, sx = 1, sy = 1, sz = 1) => { const o = add(new THREE.SphereGeometry(r, 16, 12), m, parent); o.scale.set(sx, sy, sz); return o; };
+const box = (w, h, d, m, parent = rider) => add(new THREE.BoxGeometry(w, h, d), m, parent);
+const limbGeo = new THREE.CylinderGeometry(1, 1, 1, 12);
+const limb = (r, m, r2 = r) => { const o = add(r2 === r ? limbGeo : new THREE.CylinderGeometry(r2 / r, 1, 1, 12), m); o.userData.r = r; return o; };
 const UP = V(0, 1, 0), _d = V(), _p = V(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4();
 function setLimb(o, a, b) {
   _d.subVectors(b, a); const len = _d.length() || 0.001;
@@ -40,22 +42,42 @@ function ik(a, b, l1, l2, pole, out) {
   return out.copy(a).addScaledVector(_d, x).addScaledVector(_p, h);
 }
 
-// Board: forward is -Z. The rider stands sideways, chest toward +X.
+// Board: forward is -Z. A real outline with sidecut, rounded nose and tail that kick up.
 const board = new THREE.Group(); rider.add(board);
-box(0.3, 0.045, 1.3, M.dark, board).position.y = 0.03;
-for (const s of [-1, 1]) { const tip = box(0.3, 0.045, 0.26, M.dark, board); tip.position.set(0, 0.06, s * 0.76); tip.rotation.x = s * 0.28; }
-box(0.07, 0.012, 1.25, M.hot, board).position.y = 0.058;
-const bootF = box(0.3, 0.16, 0.15, M.dark), bootB = box(0.3, 0.16, 0.15, M.dark);
-const thighF = limb(0.085, M.suit), shinF = limb(0.07, M.suit), thighB = limb(0.085, M.suit), shinB = limb(0.07, M.suit);
-const pelvis = box(0.26, 0.2, 0.32, M.suit);
-const torso = limb(0.15, M.jacket, 0.2), shoulders = box(0.22, 0.15, 0.5, M.jacket);
-const upperF = limb(0.06, M.jacket), foreF = limb(0.05, M.jacket), upperB = limb(0.06, M.jacket), foreB = limb(0.05, M.jacket);
-const handF = box(0.09, 0.09, 0.09, M.dark), handB = box(0.09, 0.09, 0.09, M.dark);
+function deckGeometry(scale, thick) {
+  const sh = new THREE.Shape(), pts = [], half = (y) => 0.158 - 0.028 * Math.cos(y / 0.56 * Math.PI / 2);
+  for (let i = 0; i <= 10; i++) { const y = -0.56 + i * 0.112; pts.push([half(y), y]); }
+  for (let i = 1; i < 10; i++) { const a = i / 10 * Math.PI; pts.push([Math.cos(a) * 0.158, 0.56 + Math.sin(a) * 0.25]); }
+  for (let i = 10; i >= 0; i--) { const y = -0.56 + i * 0.112; pts.push([-half(y), y]); }
+  for (let i = 1; i < 10; i++) { const a = Math.PI + i / 10 * Math.PI; pts.push([Math.cos(a) * 0.158, -0.56 + Math.sin(a) * 0.25]); }
+  pts.forEach(([x, y], i) => (i ? sh.lineTo(x * scale, y * (0.6 + scale * 0.4)) : sh.moveTo(x * scale, y * (0.6 + scale * 0.4))));
+  const g = new THREE.ExtrudeGeometry(sh, { depth: thick, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 1, curveSegments: 4 });
+  g.rotateX(-Math.PI / 2);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const k = Math.max(0, Math.abs(p.getZ(i)) - 0.5); p.setY(i, p.getY(i) + k * k * 1.5); }
+  g.computeVertexNormals(); return g;
+}
+add(deckGeometry(1, 0.03), M.dark, board).position.y = 0.02;
+add(deckGeometry(0.42, 0.006), M.hot, board).position.y = 0.062;
+const bootF = ball(0.1, M.dark, rider, 1.7, 1.05, 1.05), bootB = ball(0.1, M.dark, rider, 1.7, 1.05, 1.05);
+for (const z of [-0.27, 0.27]) box(0.3, 0.05, 0.2, M.suit, board).position.set(0, 0.075, z);
+const thighF = limb(0.092, M.suit, 0.078), shinF = limb(0.078, M.suit, 0.068), thighB = limb(0.092, M.suit, 0.078), shinB = limb(0.078, M.suit, 0.068);
+const kneeF = ball(0.082, M.suit), kneeB = ball(0.082, M.suit);
+const pelvis = ball(0.17, M.suit, rider, 1, 0.8, 1.2);
+// Parka: flared hem, wide shoulders, drawn in as a profile and spun.
+const parka = new THREE.LatheGeometry([[0.001, 0], [0.25, 0.0], [0.235, 0.1], [0.19, 0.38], [0.2, 0.62], [0.235, 0.86], [0.2, 0.97], [0.09, 1.04], [0.001, 1.05]].map(([x, y]) => new THREE.Vector2(x, y - 0.5)), 18);
+const torso = add(parka, M.jacket); torso.userData.r = 1;
+const shoulders = ball(0.085, M.jacket, rider, 1, 1, 1), shoulderB = ball(0.085, M.jacket);
+const upperF = limb(0.066, M.jacket, 0.058), foreF = limb(0.058, M.jacket, 0.046), upperB = limb(0.066, M.jacket, 0.058), foreB = limb(0.058, M.jacket, 0.046);
+const elbowF = ball(0.06, M.jacket), elbowB = ball(0.06, M.jacket);
+const handF = ball(0.058, M.dark), handB = ball(0.058, M.dark);
 const head = new THREE.Group(); rider.add(head);
-head.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.15, 1), M.suit));
-{ const v = box(0.2, 0.065, 0.2, M.visor, head); v.position.set(0, 0.02, -0.06); }
-const quiver = box(0.1, 0.42, 0.1, M.dark);
-for (let i = 0; i < 3; i++) { const f = box(0.02, 0.12, 0.05, M.hot, quiver); f.position.set((i - 1) * 0.03, 0.26, 0); }
+ball(0.155, M.suit, head, 1, 1.06, 1.05);
+add(new THREE.TorusGeometry(0.135, 0.042, 8, 16, Math.PI * 0.95).rotateX(-Math.PI / 2).rotateY(-0.1), M.visor, head).position.y = 0.025;
+add(new THREE.ConeGeometry(0.1, 0.2, 10).rotateX(0.5), M.suit, head).position.set(0, 0.17, 0.05);
+const collar = add(new THREE.TorusGeometry(0.115, 0.055, 8, 14).rotateX(Math.PI / 2), M.hot);
+const quiver = add(new THREE.CylinderGeometry(0.055, 0.04, 0.46, 10), M.dark);
+for (let i = 0; i < 3; i++) { const f = box(0.02, 0.13, 0.05, M.hot, quiver); f.position.set((i - 1) * 0.03, 0.28, 0); f.rotation.y = i; }
 
 // Bow: -Z points at the target. Limbs flex and the string pulls back with the draw.
 export const bow = new THREE.Group(); rider.add(bow);
@@ -65,7 +87,7 @@ const bowUp = new THREE.Group(), bowDown = new THREE.Group(); bow.add(bowUp, bow
 bowUp.add(new THREE.Mesh(limbTube, M.bowGlow)); { const t = new THREE.Mesh(limbTube, M.bowGlow); t.scale.y = -1; bowDown.add(t); }
 bow.scale.setScalar(1.35);
 for (const g of [bowUp, bowDown]) { const tip = box(0.035, 0.07, 0.035, M.gold, g); tip.position.set(0, g === bowUp ? 0.72 : -0.72, 0.17); }
-box(0.045, 0.16, 0.05, M.dark, bow);
+add(new THREE.CylinderGeometry(0.03, 0.03, 0.2, 8), M.dark, bow);
 const stringGeo = new THREE.BufferGeometry(); stringGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
 bow.add(new THREE.Line(stringGeo, new THREE.LineBasicMaterial({ color: new THREE.Color(2, 2, 2) })));
 const nocked = arrowMesh(); bow.add(nocked);
@@ -74,7 +96,7 @@ const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBas
 shadow.renderOrder = 2; scene.add(shadow);
 
 const SC = 16, scarfPts = Array.from({ length: SC }, () => V()), scarfDraw = Array.from({ length: SC }, () => V());
-const scarf = new Ribbon(SC, 0.17, new THREE.Color('#ff3d7f').multiplyScalar(2.3));
+const scarf = new Ribbon(SC, 0.19, new THREE.Color('#ff3d7f').multiplyScalar(2.3)), scarf2 = new Ribbon(SC, 0.13, new THREE.Color('#ff7aa8').multiplyScalar(1.9));
 
 export function resetPlayer() {
   Object.assign(P, { d: G.debugD ?? -24, h: 0, v: T.startSpeed, vy: 0, grounded: true, air: 0, jumpLock: 0, edge: 0, carveT: 0, brake: 0, onIce: false, bonkT: 0, crouch: 0.25, squash: 0, skid: 0 });
@@ -181,13 +203,14 @@ function pose(dt, tuck, sAlong) {
   hip.set(0.04 + c * 0.1, 0.9 - c * 0.42 + bob, 0);
   chest.set(hip.x + 0.06 + c * 0.2, hip.y + 0.5 - c * 0.1, -0.04);
   bootF.position.copy(footF); bootB.position.copy(footB);
-  setLimb(thighF, a.set(hip.x, hip.y, -0.1), ik(a, b.set(0, 0.2, -0.27), 0.46, 0.46, _p2.set(1, 0.2, -0.5), knee)); setLimb(shinF, knee, b);
-  setLimb(thighB, a.set(hip.x, hip.y, 0.1), ik(a, b.set(0, 0.2, 0.27), 0.46, 0.46, _p2.set(1, 0.2, 0.5), knee)); setLimb(shinB, knee, b);
+  setLimb(thighF, a.set(hip.x, hip.y, -0.1), ik(a, b.set(0, 0.2, -0.27), 0.46, 0.46, _p2.set(1, 0.2, -0.5), knee)); setLimb(shinF, knee, b); kneeF.position.copy(knee);
+  setLimb(thighB, a.set(hip.x, hip.y, 0.1), ik(a, b.set(0, 0.2, 0.27), 0.46, 0.46, _p2.set(1, 0.2, 0.5), knee)); setLimb(shinB, knee, b); kneeB.position.copy(knee);
   pelvis.position.copy(hip);
-  setLimb(torso, hip, chest);
-  shoulders.position.copy(chest); shoulders.rotation.set(0, 0.25 + aim.blend * 0.2, -c * 0.35);
-  head.position.set(chest.x + 0.03, chest.y + 0.27, chest.z - 0.03); head.rotation.set(0, 0.35 - e * 0.2, 0);
-  quiver.position.set(chest.x - 0.2, chest.y - 0.12, 0.1); quiver.rotation.set(0.4, 0, 0.25);
+  setLimb(torso, a.set(hip.x - 0.02, hip.y - 0.12, 0), b.set(chest.x, chest.y + 0.16, chest.z)); torso.scale.z = 1.22;
+  shoulders.position.set(chest.x, chest.y + 0.05, chest.z - 0.25); shoulderB.position.set(chest.x, chest.y + 0.05, chest.z + 0.25);
+  collar.position.set(chest.x + 0.01, chest.y + 0.17, chest.z - 0.02);
+  head.position.set(chest.x + 0.03, chest.y + 0.31, chest.z - 0.03); head.rotation.set(0, 0.35 - e * 0.2, 0);
+  quiver.position.set(chest.x - 0.24, chest.y - 0.1, 0.12); quiver.rotation.set(0.45, 0, 0.3);
 
   // Bow arm: at rest the bow hangs forward and low; on the draw it swings up along the aim line.
   aimL.copy(aim.dir).applyQuaternion(_q.copy(rider.quaternion).invert());
@@ -205,8 +228,8 @@ function pose(dt, tuck, sAlong) {
   nockP.set(0, 0, pull * 1.35).applyQuaternion(bow.quaternion).add(bowP);
   handPosF.copy(bowP);
   handPosB.set(hip.x + 0.25, hip.y + 0.2, 0.5).lerp(nockP, aim.blend);
-  a.set(chest.x, chest.y + 0.05, chest.z - 0.24); setLimb(upperF, a, ik(a, handPosF, 0.31, 0.31, _p2.set(0.2, -1, 0), elbow)); setLimb(foreF, elbow, handPosF);
-  a.set(chest.x, chest.y + 0.05, chest.z + 0.24); setLimb(upperB, a, ik(a, handPosB, 0.31, 0.31, _p2.set(-0.2, -0.6, 1), elbow)); setLimb(foreB, elbow, handPosB);
+  a.set(chest.x, chest.y + 0.05, chest.z - 0.24); setLimb(upperF, a, ik(a, handPosF, 0.31, 0.31, _p2.set(0.2, -1, 0), elbow)); setLimb(foreF, elbow, handPosF); elbowF.position.copy(elbow);
+  a.set(chest.x, chest.y + 0.05, chest.z + 0.24); setLimb(upperB, a, ik(a, handPosB, 0.31, 0.31, _p2.set(-0.2, -0.6, 1), elbow)); setLimb(foreB, elbow, handPosB); elbowB.position.copy(elbow);
   handF.position.copy(handPosF); handB.position.copy(handPosB);
 
   rider.updateMatrixWorld(true);
@@ -235,5 +258,7 @@ function pose(dt, tuck, sAlong) {
     scarfDraw[i].copy(scarfPts[i]); scarfDraw[i].x += Math.cos(P.h) * Math.sin(ph) * k; scarfDraw[i].z += Math.sin(P.h) * Math.sin(ph) * k; scarfDraw[i].y += Math.cos(ph * 0.8) * k;
   }
   scarf.update(scarfDraw, 0.25);
+  for (let i = 0; i < SC; i++) { const k = i / SC, ph = G.t * 13 - i * 1.1; scarfDraw[i].lerpVectors(scarfPts[0], scarfPts[i], 0.62); scarfDraw[i].y += k * (0.35 + Math.sin(ph) * 0.12); scarfDraw[i].x += Math.cos(P.h) * k * (0.3 + Math.cos(ph) * 0.12); scarfDraw[i].z += Math.sin(P.h) * k * 0.3; }
+  scarf2.update(scarfDraw, 0.3);
 }
 const _zero = V(), _z = V(0, 0, 1), _p2 = V();

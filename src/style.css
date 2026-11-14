@@ -1,6 +1,6 @@
 :root { --ink: #fff7f2; --hot: #ff4f86; --gold: #ffc46b; --ice: #7af3ff; --font: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: #120c40; color: var(--ink); font-family: var(--font); user-select: none; -webkit-user-select: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; touch-action: none; overscroll-behavior: none; -webkit-touch-callout: none; background: #120c40; color: var(--ink); font-family: var(--font); user-select: none; -webkit-user-select: none; }
 #game, #game canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 body.playing, body.playing * { cursor: none; }
 .hidden { display: none !important; }
@@ -9,7 +9,7 @@ body.playing, body.playing * { cursor: none; }
 #hud { position: fixed; inset: 0; pointer-events: none; text-shadow: 0 2px 18px rgba(20, 8, 60, .55); }
 #prog { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: rgba(255, 255, 255, .12); }
 #progFill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--hot), var(--ice)); transform-origin: left; transform: scaleX(0); }
-#scoreBox { position: absolute; left: 36px; top: 30px; }
+#scoreBox { position: absolute; left: max(36px, env(safe-area-inset-left, 0px) + 16px); top: 30px; }
 #score { font-size: 54px; font-weight: 200; letter-spacing: .04em; line-height: 1; font-variant-numeric: tabular-nums; }
 #flowRow { display: flex; align-items: center; gap: 10px; margin-top: 10px; opacity: .55; transition: opacity .2s; }
 #flow { font-size: 20px; font-weight: 700; letter-spacing: .08em; }
@@ -17,7 +17,7 @@ body.playing, body.playing * { cursor: none; }
 #flowRow:has(#flow.on) { opacity: 1; }
 #flowBar { width: 120px; height: 3px; background: rgba(255, 255, 255, .2); display: block; }
 #flowFill { display: block; height: 100%; background: var(--gold); transform-origin: left; }
-#speedBox { position: absolute; right: 36px; top: 30px; text-align: right; font-size: 34px; font-weight: 200; font-variant-numeric: tabular-nums; }
+#speedBox { position: absolute; right: max(36px, env(safe-area-inset-right, 0px) + 16px); top: 30px; text-align: right; font-size: 34px; font-weight: 200; font-variant-numeric: tabular-nums; }
 #speedBox small { display: block; font-size: 10px; letter-spacing: .3em; opacity: .7; font-weight: 600; }
 #pop { position: absolute; left: 0; right: 0; top: 19%; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: .32em; opacity: 0; }
 #pop.show { animation: pop 1.3s cubic-bezier(.2, .9, .2, 1) forwards; }
@@ -56,3 +56,20 @@ h1 span { font-weight: 700; }
 #help { margin-top: 34px; font-size: 11px; letter-spacing: .14em; opacity: .7; line-height: 2; }
 #help b { color: var(--gold); letter-spacing: .2em; }
 #error { color: #ffb0b0; font-size: 13px; }
+
+#restart { display: none; margin: 18px auto 0; font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .4em; color: var(--ink); background: none; border: 1px solid rgba(255, 255, 255, .4); border-radius: 30px; padding: 10px 26px; cursor: pointer; }
+#overlay.paused #restart { display: block; }
+#pauseBtn { display: none; position: absolute; top: 14px; left: 50%; transform: translateX(-50%); pointer-events: auto; font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .2em; color: var(--ink); background: rgba(20, 10, 60, .35); border: 1px solid rgba(255, 255, 255, .35); border-radius: 20px; padding: 8px 16px; }
+#touchHint { display: none; position: absolute; left: 0; right: 0; bottom: max(22px, env(safe-area-inset-bottom, 0px) + 12px); justify-content: space-around; font-size: 10px; font-weight: 700; letter-spacing: .3em; opacity: 0; animation: hint 7s both; }
+@keyframes hint { 0%, 100% { opacity: 0; } 10%, 75% { opacity: .75; } }
+#helpTouch { display: none; margin-top: 30px; font-size: 11px; letter-spacing: .12em; opacity: .8; line-height: 2.1; }
+#helpTouch b { color: var(--gold); letter-spacing: .2em; }
+body.touch #pauseBtn { display: block; } body.touch #touchHint { display: flex; } body.touch #helpTouch { display: block; } body.touch #help { display: none; }
+body.touch #reticle { transform-origin: 0 0; }
+@media (max-width: 760px), (max-height: 480px) {
+  #score { font-size: 34px; } #flow { font-size: 15px; } #flowBar { width: 80px; } #speedBox { font-size: 22px; } #pop { font-size: 16px; top: 16%; }
+  #scoreBox, #speedBox { top: 16px; }
+  #tagline { font-size: 12px; margin: 12px 0 18px; } #kicker { font-size: 9px; margin-bottom: 10px; } #start { padding: 13px 30px 13px 36px; font-size: 12px; }
+  #stats { gap: 16px; margin-bottom: 16px; } #stats div b { font-size: 19px; } #stats div span { font-size: 8px; } #helpTouch { margin-top: 16px; font-size: 9px; line-height: 1.9; }
+}
+@media (prefers-reduced-motion: reduce) { #pop.show { animation-duration: .01s; opacity: 1; } }

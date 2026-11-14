@@ -1,5 +1,42 @@
 # Changes and handoffs
 
+## v0.3 | 2026-11-14 | Claude
+
+An art pass ("too simple and boxy") plus touch controls, so the game can be played on a phone.
+
+**Changed**
+
+- **Snow is a material now.** Smooth dunes instead of facets, wind ripples that catch the low sun, sparkle, a sheen toward the sun, and long blue tree shadows painted once into a map of the course.
+- **Trees.** Layered firs with jagged skirts and snow on the boughs, in three shapes, with a sun rim on their edges.
+- **Rocks.** Dark outcrops with snow tops along the banks, thickest on the steep pitches.
+- **Sky.** Streaked clouds lit from below, sharper far ridges in four layers, and an aurora in the night section.
+- **Rider.** Smooth limbs and joints, a parka with a flared hem, a pointed hood, a curved visor, a board with a real outline and kicked nose and tail, and a second scarf tail.
+- **Ice.** A glassy shader: see-through face-on, bright at glancing angles, with a sun glint per facet.
+- **Targets and gates.** Sentries are a glowing seed between crystal shells inside turning rings. Gates are arches of light.
+- **Lens.** Speed blur toward the frame edges, light colour fringing, vignette, grain.
+- **Touch.** Left thumb drags to steer (up tucks, down brakes). Right thumb holds and drags to aim, releases to shoot, taps to jump. Pause button, small-screen HUD, wider lens on tall screens.
+- **Sharing.** `npm run artifact` packs everything into one HTML file in `dist/`.
+
+**Tested**
+
+- `npm run check` and `npm test` pass.
+- The single-file build was run on an emulated phone with real touch events: steer, aim, shoot and tap-to-jump all register, with no console errors.
+- Screenshots reviewed from the headless browser.
+- **Still not tested: a human at full frame rate, or a real phone GPU.** The game lowers its own resolution if frames are slow, but that is unverified on real hardware.
+
+**Known issues**
+
+- The trench behind the board is still a flat ribbon, and carve spray is modest at low speed.
+- The arms and bow are still simple.
+- Touch aim is relative (drag moves the reticle); sensitivity is a guess (`1.6` in `src/main.js`).
+- No music yet.
+
+**Best next action**
+
+Play it on a phone and a laptop. Report frame rate, whether steering and aim sensitivity feel right on touch, and which part of the picture still looks cheapest.
+
+---
+
 ## v0.2 | 2026-11-14 | Claude
 
 A rebuild of look and feel. The v0.1 mechanics list is the same (carve, bow, ice); almost every line of code is new.

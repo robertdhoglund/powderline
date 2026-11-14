@@ -25,7 +25,7 @@ let wasFull = false;
 
 export const focusScale = () => (A.drawing && A.focus > 0 ? (P.grounded ? T.focusGround : T.focusAir) : 1);
 export function startDraw() { if (G.mode !== 'run' || A.drawing) return; A.drawing = true; A.draw = 0; wasFull = false; }
-export function cancelDraw() { if (A.drawing) { A.drawing = false; A.draw = 0; sfx('cancel'); } }
+export function cancelDraw(silent) { if (A.drawing) { A.drawing = false; A.draw = 0; if (!silent) sfx('cancel'); } }
 
 // Where does an arrow have to leave to arrive at `to`, allowing for its drop and the target's motion?
 function solve(from, to, vel, speed, out) {

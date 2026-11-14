@@ -85,15 +85,15 @@ const quad = (k, a, b, c, d, ca, cb) => { // two triangles a-b-c, b-d-c with col
 };
 export function carveTrench(P, grounded, brake) {
   if (!grounded) { prev = null; return; }
-  const rx = Math.cos(P.h), rz = Math.sin(P.h), w = 0.17 + brake * 0.5 - Math.abs(P.edge) * 0.05, rim = w + 0.11;
+  const rx = Math.cos(P.h), rz = Math.sin(P.h), w = 0.12 + brake * 0.5 - Math.abs(P.edge) * 0.03, rim = w + 0.08;
   const mk = (o, lift) => { const x = P.x + rx * o, z = P.z + rz * o; return [x, height(x, z) + lift, z]; };
   const cur = { l2: mk(-rim, 0.02), l1: mk(-w, 0.09), c1: mk(-w * 0.8, 0.03), c2: mk(w * 0.8, 0.03), r1: mk(w, 0.09), r2: mk(rim, 0.02), x: P.x, z: P.z };
   if (!prev) { prev = cur; return; }
   if ((cur.x - prev.x) ** 2 + (cur.z - prev.z) ** 2 < 0.36) return;
   const k = (tHead++ % SEG) * VPS * 3;
-  quad(k, prev.l2, prev.l1, cur.l2, cur.l1, 1.0, 1.25);
-  quad(k + 18, prev.c1, prev.c2, cur.c1, cur.c2, 0.6, 0.6);
-  quad(k + 36, prev.r1, prev.r2, cur.r1, cur.r2, 1.25, 1.0);
+  quad(k, prev.l2, prev.l1, cur.l2, cur.l1, 1.0, 1.15);
+  quad(k + 18, prev.c1, prev.c2, cur.c1, cur.c2, 0.66, 0.66);
+  quad(k + 36, prev.r1, prev.r2, cur.r1, cur.r2, 1.15, 1.0);
   tGeo.attributes.position.needsUpdate = true; tGeo.attributes.color.needsUpdate = true;
   prev = cur;
 }
