@@ -41,7 +41,7 @@ Original low-poly, clean, elegant but not overly abstract. Blue-grey mist, dark 
 
 ## First playable scope
 
-One long procedural mountain; trees, moving enemy targets, 16 ice patches, bow, score and sound. No menus beyond start/pause/end, no multiplayer, inventory, loot, quests, realistic ski bindings or character animation system.
+One mountain of about a minute; trees, moving targets, ice sheets and walls, bow, score and sound. No menus beyond start/pause/end, no multiplayer, inventory, loot, quests, realistic ski bindings or character animation system.
 
 ## Future ideas, explicitly not first-version tasks
 
@@ -56,16 +56,30 @@ One long procedural mountain; trees, moving enemy targets, 16 ice patches, bow, 
 
 Steering and aiming simultaneously may be too demanding. Keep the start easy. The first playtest should deliberately test this conflict. Do not add extra enemies to hide bad controls.
 
-## Decisions locked for v0.1
+## Decisions locked
 
 - Browser game, vanilla JS, Three.js (not Roblox).
 - Desktop-first, one-button mouse archery and A/D snowboarding.
 - No purchased assets, no backend, no paid API calls.
-- Entire source code is readable/editable in a small folder, portable between Claude and ChatGPT.
+- Source is small readable modules, portable between Claude and ChatGPT.
+
+## Decisions made in v0.2
+
+- **Palette.** Dusk to night with glowing accents replaces the daylight pastel. Coral jacket, magenta scarf, amber targets, cyan ice. The contrast is what makes the rest read.
+- **Steepness.** The mountain alternates mellow benches with pitches of 45 degrees and more. The camera sits along the slope so the drop is visible.
+- **Bow reference: Horizon Zero Dawn.** Time slows while drawing, more in the air, on a limited focus meter. The arrow flies an arc but lands where the reticle points. Core hits are rewarded.
+- **Aim help: yes.** Magnetism near targets, and the board follows the piste when you let go of steering. This is the answer to the main design risk below.
+- **Ice is both.** Sheets are a speed boost to ride across; walls are an obstacle to shoot. Neither can end the run.
+- **Fail-soft.** Trees, walls and misses cost speed and flow, never the run.
+- **Beat grid.** The course is authored in beats of 14 m so a later music track can sync to it.
+
+## Deferred on purpose
+
+Longer and additional levels, music and richer sound, tricks, touch and gamepad controls.
 
 ## Open decisions
 
-- Should snow be even deeper, allowing slow drift and more pronounced powder banks?
-- Should shooting while carving offer automatic slight aim correction?
-- Does ice function best as a hazard, a shortcut, or simply an enjoyable destructive object?
+- How twitchy should carving be? (`turnRate`, `edgeIn`, `assist` in `src/config.js`)
+- How strong should slow motion be, and how fast should focus drain?
+- Should the powder be thicker, with deeper trenches and bigger plumes?
 - What is the right balance between relaxed flow and reflex challenge?

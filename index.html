@@ -3,33 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#111a30" />
-  <title>Powderline · arcade snowboard + archery</title>
+  <meta name="theme-color" content="#1b1450" />
+  <title>Powderline</title>
   <link rel="stylesheet" href="./src/style.css" />
   <script type="importmap">
-    {"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js"}}
+    {"imports": {"three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/addons/"}}
   </script>
 </head>
 <body>
   <div id="game"></div>
-  <div class="vignette"></div>
-  <div id="hud" class="hidden">
-    <div class="topline"><div class="brand">POWDERLINE <span>prototype 0.1</span></div><div id="status">THE RUN</div></div>
-    <div class="stats"><div><span class="statlabel">SCORE</span><strong id="score">0</strong></div><div><span class="statlabel">SPEED</span><strong id="speed">0 <small>km/h</small></strong></div><div><span class="statlabel">DISTANCE</span><strong id="distance">0 <small>m</small></strong></div></div>
-    <div id="chargeWrap"><span>DRAW</span><div id="chargeBar"><div id="chargeFill"></div></div><span id="chargeText">READY</span></div>
-    <div id="combo"></div>
-    <div class="bottomhelp">A/D CARVE &nbsp; · &nbsp; W/S SPEED &nbsp; · &nbsp; SPACE JUMP &nbsp; · &nbsp; HOLD + RELEASE CLICK TO SHOOT &nbsp; · &nbsp; P PAUSE</div>
-  </div>
-  <div id="reticle" class="hidden"><span class="reticle-h"></span><span class="reticle-v"></span><span class="reticle-dot"></span></div>
   <div id="flash"></div>
-  <div id="overlay">
+  <div id="hud" class="hidden">
+    <div id="prog"><div id="progFill"></div></div>
+    <div id="scoreBox">
+      <div id="score">0</div>
+      <div id="flowRow"><span id="flow">×1</span><span id="flowBar"><span id="flowFill"></span></span></div>
+    </div>
+    <div id="speedBox"><span id="speed">0</span><small>KM/H</small></div>
+    <div id="pop"></div>
+  </div>
+  <div id="reticle" class="hidden">
+    <svg viewBox="0 0 44 44"><circle id="focusArc" cx="22" cy="22" r="18" /></svg>
+    <i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i>
+  </div>
+  <div id="overlay" class="show title">
     <div class="panel">
-      <p class="kicker">A ONE-MOUNTAIN EXPERIMENT</p>
-      <h1>POWDER<span>LINE</span></h1>
-      <p class="tagline">Carve through fresh powder. Draw your bow. Shatter the ice.</p>
-      <div class="three"><div><b>01 / CARVE</b><p>Feel the board drift. Leave deep tracks and throw powder into the air.</p></div><div><b>02 / SHOOT</b><p>Aim with your mouse. Hold to draw, release to shoot. Overdrawing adds wobble.</p></div><div><b>03 / SHATTER</b><p>Ride across blue ice or blast it with arrows. Break things beautifully.</p></div></div>
-      <button id="start">START RUN <span>→</span></button>
-      <p class="hint">Desktop browser recommended. A/D turn · W/S speed · Space jump · Mouse bow · R restart · P pause</p>
+      <p id="kicker">ONE MOUNTAIN · ONE RUN</p>
+      <h1 id="title">POWDER<span>LINE</span></h1>
+      <p id="tagline">Carve the powder. Draw the bow. Shatter the ice.</p>
+      <div id="stats"></div>
+      <button id="start">DROP IN</button>
+      <p id="help"><b>A D</b> carve &nbsp; <b>W</b> tuck &nbsp; <b>S</b> brake &nbsp; <b>SPACE</b> jump &nbsp; <b>HOLD MOUSE</b> draw · release to shoot &nbsp; <b>RIGHT CLICK</b> cancel &nbsp; <b>P</b> pause &nbsp; <b>R</b> restart</p>
       <p id="error" role="alert"></p>
     </div>
   </div>
