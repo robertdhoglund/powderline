@@ -46,7 +46,7 @@ export function showOverlay(kind) {
   if (kind === 'title') { el.kicker.textContent = 'ONE MOUNTAIN · ONE RUN'; el.title.innerHTML = 'POWDER<span>LINE</span>'; el.tag.textContent = 'Carve the powder. Draw the bow. Shatter the ice.'; el.start.textContent = 'DROP IN'; el.stats.innerHTML = ''; }
   if (kind === 'paused') { el.kicker.textContent = 'PAUSED'; el.title.innerHTML = 'BREATHE<span>.</span>'; el.tag.textContent = 'The mountain will wait.'; el.start.textContent = 'RESUME'; el.stats.innerHTML = ''; }
   if (kind === 'finished') {
-    const s = G.stats, t = G.totals, rank = G.score >= 85000 ? 'S' : G.score >= 55000 ? 'A' : G.score >= 28000 ? 'B' : 'C';
+    const s = G.stats, t = G.totals, rank = G.score >= 190000 ? 'S' : G.score >= 120000 ? 'A' : G.score >= 60000 ? 'B' : 'C';
     el.kicker.textContent = 'RUN COMPLETE'; el.title.innerHTML = `RANK <span>${rank}</span>`;
     el.tag.textContent = `${G.score.toLocaleString('en-US')} points in ${s.time.toFixed(1)} seconds`;
     el.stats.innerHTML = [['TARGETS', `${s.kills}/${t.targets}`], ['PERFECT', s.perfect], ['ICE', `${s.ice}/${t.ice}`], ['GATES', `${s.gates}/${t.gates}`], ['BEST FLOW', `×${s.bestFlow}`], ['BIG AIR', `${s.maxAir.toFixed(1)}s`]]

@@ -1,5 +1,41 @@
 # Changes and handoffs
 
+## v0.4 | 2026-11-14 | Claude
+
+Kasper's round: goblins, a new hero, fresher snow, a longer and turnier mountain with more jumps.
+
+**Changed**
+
+- **Goblins replace the floating sentries.** Three kinds: lookouts on wooden watchtowers, goblins hanging under glowing lantern balloons (shoot the goblin or pop the balloon), and raiders on sleds that ride ahead of you. Same hit rules as before: any hit counts, a centre hit is PERFECT, close neighbours chain.
+- **New hero.** A young ranger: emerald tunic and belt, cream sleeves, tall leather boots, copper hair, pointed ears, a quiver, and an ochre cape that flies behind. Adventurer-archer in spirit; deliberately not a copy of any existing character.
+- **Fresh snow.** The trench is a real groove with raised berms (higher on the outside of a carve) and a shadowed floor. Carving throws clods as well as spray. Steep carves set loose snow running beside you. Landings leave a crater ring. Trees dump their snow when you pass close.
+- **Real shadows.** The rider, goblins and props cast long shadows from the low sun.
+- **Longer course, more turning.** About 2.5 km and 85 to 90 seconds, up from 1.3 km. Each section sets how hard the course swings; the canyon and gorge are tight S-turns. New: rollers, three cliff drops, a four-kicker jump park with ravines, and a dawn at the end.
+- **Air spins.** Hold a direction in the air to spin; clean half-turns score.
+- **Set dressing.** Watchtowers, torches, and pennants at every lip so jumps read from far away.
+- **Performance.** Trees, rocks and terrain are drawn only near the rider.
+
+**Tested**
+
+- `npm run check` and `npm test` pass (autopilot finishes the new course: 64 of 70 goblins, 40 of 41 gates).
+- The single-file build runs on an emulated phone with touch input and no console errors.
+- Close-up renders of the hero and each goblin type were reviewed.
+- **Still not tested by me: full frame rate on real hardware.** The scene is heavier than v0.3 (shadows, more geometry).
+
+**Known issues**
+
+- The cape is stiff at speed, and the hero's arms are simple.
+- Tower goblins only hop and turn; they have no attack.
+- Raiders are harmless.
+- Rank thresholds are guesses (autopilot scores about 192,000; S is 190,000).
+- No music yet.
+
+**Best next action**
+
+Play it. Report frame rate on the phone, whether the canyon turns are too tight, and whether the jumps are big enough.
+
+---
+
 ## v0.3 | 2026-11-14 | Claude
 
 An art pass ("too simple and boxy") plus touch controls, so the game can be played on a phone.

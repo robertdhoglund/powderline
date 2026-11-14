@@ -17,7 +17,7 @@ export const T = {
   carveScrub: 0.13,      // speed lost while holding an edge
   pumpBoost: 3.4,        // speed gained by releasing a held carve
   jump: 8.5,
-  airSteer: 0.9,
+  airSteer: 0.4,
 
   // Bow
   drawTime: 0.55,        // seconds of real time to full draw
@@ -30,5 +30,5 @@ export const T = {
 
   // Camera
   fovBase: 62, fovSpeed: 24, fovAim: 15,
-  camDist: 7.0, camHeight: 2.3,
+  camDist: 5.9, camHeight: 2.2,
 };

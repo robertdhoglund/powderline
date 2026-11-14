@@ -21,7 +21,7 @@ const server = http.createServer((req, res) => {
   await page.click('#start');
   const run = await page.evaluate(() => {
     const { G, sim } = window.__pl;
-    for (let i = 0; i < 600 && G.mode === 'run'; i++) sim(0.25);
+    for (let i = 0; i < 1400 && G.mode === 'run'; i++) sim(0.25);
     return { mode: G.mode, score: G.score, stats: G.stats, totals: G.totals };
   });
   await page.keyboard.press('r');
@@ -33,7 +33,7 @@ const server = http.createServer((req, res) => {
   if (run.stats.kills < 8) fail.push(`autopilot only hit ${run.stats.kills} targets`);
   if (run.stats.gates < 10) fail.push(`autopilot only made ${run.stats.gates} gates`);
   if (run.stats.ice < 3) fail.push(`only ${run.stats.ice} ice panels broke`);
-  if (run.stats.time > 120) fail.push(`run took ${run.stats.time.toFixed(0)} s`);
+  if (run.stats.time > 260) fail.push(`run took ${run.stats.time.toFixed(0)} s`);
   if (again.mode !== 'run' || again.score !== 0) fail.push('restart did not reset the run');
   console.log(JSON.stringify(run));
   if (fail.length) { console.error('FAIL\n- ' + fail.join('\n- ')); process.exit(1); }

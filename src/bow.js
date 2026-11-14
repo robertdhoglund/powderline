@@ -96,7 +96,7 @@ export function updateBow(rdt, dt) {
       for (let i = TRAIL - 1; i > 0; i--) a.pts[i].copy(a.pts[i - 1]); a.pts[0].copy(a.pos);
       a.trail.update(a.pts, 1, 1);
       let hit = null, hd = 9;
-      for (const e of enemies) { if (!e.alive || !e.group.visible) continue; const d = segDist(prev, a.pos, e.pos); if (d < e.radius + 0.2 && d < hd) { hd = d; hit = e; } }
+      for (const e of enemies) { if (!e.alive || !e.group.visible) continue; let d = segDist(prev, a.pos, e.pos); if (e.pos2) { const d2 = segDist(prev, a.pos, e.pos2); if (d2 < 1.5) d = Math.min(d, 0.7 + d2 * 0.5); } if (d < e.radius + 0.2 && d < hd) { hd = d; hit = e; } }
       if (hit) { killEnemy(hit, hd < 0.62, _v.copy(dirN).multiplyScalar(7)); a.state = 3; a.t = 0; a.mesh.visible = false; }
       else if (arrowHit(prev, a.pos, dirN)) { a.state = 3; a.t = 0; a.mesh.visible = false; }
       else if (a.pos.y < height(a.pos.x, a.pos.z)) { a.state = 2; a.t = 0; snow.puff(a.pos, 10, 0.6); sfx('thunk'); }

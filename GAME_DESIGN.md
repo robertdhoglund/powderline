@@ -73,6 +73,12 @@ Steering and aiming simultaneously may be too demanding. Keep the start easy. Th
 - **Fail-soft.** Trees, walls and misses cost speed and flow, never the run.
 - **Beat grid.** The course is authored in beats of 14 m so a later music track can sync to it.
 
+## Decisions made in v0.4
+
+- **Targets are goblins** (Kasper's call): tower lookouts, lantern-balloon goblins, sled raiders.
+- **The hero is an original ranger-archer.** Inspired by classic adventure heroes, but not a copy of any one of them.
+- **The course turns.** Each section has its own turn strength, steepness and width.
+
 ## Deferred on purpose
 
 Longer and additional levels, music and richer sound, tricks, touch and gamepad controls.

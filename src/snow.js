@@ -21,7 +21,7 @@ const mat = new THREE.ShaderMaterial({
   uniforms: { uScale: { value: 600 }, uLit: { value: new THREE.Color() }, uShade: { value: new THREE.Color() } },
   vertexShader: `attribute float aSize, aAlpha, aTint; uniform float uScale; varying float vA, vT;
     void main(){ vA = aAlpha; vT = aTint; vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv;
-      gl_PointSize = min(300.0, aSize * uScale / max(0.5, -mv.z)); vA *= smoothstep(1.5, 7.0, -mv.z); }`,
+      gl_PointSize = min(300.0, aSize * uScale / max(0.5, -mv.z)); vA *= smoothstep(2.5, 10.0, -mv.z); }`,
   fragmentShader: `uniform vec3 uLit, uShade; varying float vA, vT;
     void main(){ vec2 q = gl_PointCoord - 0.5; float r = length(q) * 2.0; float a = smoothstep(1.0, 0.0, r); a *= a;
       // Lit from above and ahead: the top of each puff catches the low sun.
@@ -61,40 +61,50 @@ export function spray(P, dt, brake) {
     if (sheet) {
       const out = (1.6 + e * 6.5 * rand(0.55, 1.15)) * (0.5 + sp * 0.6), up = (1.4 + e * 5.6 * rand(0.5, 1.1) + brake * 2) * (0.6 + sp * 0.5), carry = P.v * rand(0.3, 0.62) * (1 - brake * 0.5);
       const s = brake > 0.5 ? (Math.random() < 0.5 ? -1 : 1) * rand(0.2, 1) : side;
-      emit(x, y, z, rx * s * out + dx * carry, up, rz * s * out + dz * carry, rand(0.22, 0.55), rand(0.5, 1.0), 2.4, rand(0.45, 0.8), 2.3, 7.0);
+      emit(x, y, z, rx * s * out + dx * carry, up, rz * s * out + dz * carry, rand(0.2, 0.5), rand(0.45, 0.95), 2.2, rand(0.3, 0.58), 2.3, 7.0);
     } else {
       emit(x + rx * rand(-0.3, 0.3), y, z + rz * rand(-0.3, 0.3), rx * rand(-1.2, 1.2) + dx * P.v * 0.12, rand(0.2, 0.9), rz * rand(-1.2, 1.2) + dz * P.v * 0.12, rand(0.3, 0.6), rand(0.4, 0.8), 2.2, rand(0.12, 0.22), 2.2, 1.5);
     }
   }
 }
 
-// ---- trench: a shadowed groove with bright raised rims ------------------------------------
-const SEG = 700, VPS = 18;
+// Sluff: on steep pitches a carve sets loose snow running down the slope beside you.
+export function sluff(P, dt, side) {
+  let n = Math.random() < dt * 60 ? 2 : 0;
+  while (n-- > 0) {
+    const rx = Math.cos(P.h), rz = Math.sin(P.h), dx = Math.sin(P.h), dz = -Math.cos(P.h), o = rand(0.5, 2.6) * side;
+    emit(P.x + rx * o + dx * rand(-1, 1), P.y + 0.1, P.z + rz * o + dz * rand(-1, 1), dx * P.v * rand(0.75, 0.95) + rx * side, rand(0.2, 1.2), dz * P.v * rand(0.75, 0.95) + rz * side, rand(0.35, 0.8), rand(0.8, 1.5), 1.6, rand(0.2, 0.36), 0.5, 2.5);
+  }
+}
+
+// ---- trench: a real groove. Raised berms either side, walls that catch or lose the sun, a packed floor.
+const SEG = 900, QUADS = 6, VPS = QUADS * 6;
 const tPos = new Float32Array(SEG * VPS * 3), tCol = new Float32Array(SEG * VPS * 3), tNor = new Float32Array(SEG * VPS * 3);
-for (let i = 1; i < tNor.length; i += 3) tNor[i] = 1;
 const tGeo = new THREE.BufferGeometry();
 tGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3).setUsage(THREE.DynamicDrawUsage));
 tGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3).setUsage(THREE.DynamicDrawUsage));
-tGeo.setAttribute('normal', new THREE.BufferAttribute(tNor, 3));
+tGeo.setAttribute('normal', new THREE.BufferAttribute(tNor, 3).setUsage(THREE.DynamicDrawUsage));
 const trench = new THREE.Mesh(tGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-trench.frustumCulled = false; scene.add(trench);
+trench.frustumCulled = false; trench.receiveShadow = true; scene.add(trench);
 let tHead = 0, prev = null;
-const quad = (k, a, b, c, d, ca, cb) => { // two triangles a-b-c, b-d-c with colours ca (a,c side) and cb (b,d side)
+const SHADE = [1.0, 1.12, 0.6, 0.6, 1.12, 1.0, 1.0];     // outer, berm, floor edge, floor edge, berm, outer
+function quad(k, a, b, c, d, ca, cb) { // a,b on the previous cross-section, c,d on this one
+  const ux = c[0] - a[0], uy = c[1] - a[1], uz = c[2] - a[2], vx = b[0] - a[0], vy = b[1] - a[1], vz = b[2] - a[2];
+  let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nz) || 1; if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; }
   const v = [a, b, c, b, d, c], cc = [ca, cb, ca, cb, cb, ca];
-  for (let i = 0; i < 6; i++) { tPos.set(v[i], k + i * 3); tCol[k + i * 3] = cc[i] * 0.92; tCol[k + i * 3 + 1] = cc[i] * 0.94; tCol[k + i * 3 + 2] = cc[i]; }
-};
+  for (let i = 0; i < 6; i++) { const o = k + i * 3; tPos.set(v[i], o); tNor[o] = nx / l; tNor[o + 1] = ny / l; tNor[o + 2] = nz / l; tCol[o] = cc[i] * 0.95; tCol[o + 1] = cc[i] * 0.96; tCol[o + 2] = cc[i]; }
+}
 export function carveTrench(P, grounded, brake) {
   if (!grounded) { prev = null; return; }
-  const rx = Math.cos(P.h), rz = Math.sin(P.h), w = 0.12 + brake * 0.5 - Math.abs(P.edge) * 0.03, rim = w + 0.08;
-  const mk = (o, lift) => { const x = P.x + rx * o, z = P.z + rz * o; return [x, height(x, z) + lift, z]; };
-  const cur = { l2: mk(-rim, 0.02), l1: mk(-w, 0.09), c1: mk(-w * 0.8, 0.03), c2: mk(w * 0.8, 0.03), r1: mk(w, 0.09), r2: mk(rim, 0.02), x: P.x, z: P.z };
+  const rx = Math.cos(P.h), rz = Math.sin(P.h), e = P.edge, w = 0.13 + brake * 0.45, out = e > 0 ? -1 : 1, big = Math.abs(e) * 0.14 + brake * 0.1;
+  // Carving piles the berm higher on the outside of the turn.
+  const offs = [-(w + 0.3), -(w + 0.1), -w, w, w + 0.1, w + 0.3], lift = [0.0, 0.13 + (out < 0 ? big : 0), -0.02, -0.02, 0.13 + (out > 0 ? big : 0), 0.0];
+  const cur = offs.map((o, i) => { const x = P.x + rx * o, z = P.z + rz * o; return [x, height(x, z) + lift[i] + 0.025, z]; }); cur.x = P.x; cur.z = P.z;
   if (!prev) { prev = cur; return; }
-  if ((cur.x - prev.x) ** 2 + (cur.z - prev.z) ** 2 < 0.36) return;
+  if ((cur.x - prev.x) ** 2 + (cur.z - prev.z) ** 2 < 0.3) return;
   const k = (tHead++ % SEG) * VPS * 3;
-  quad(k, prev.l2, prev.l1, cur.l2, cur.l1, 1.0, 1.15);
-  quad(k + 18, prev.c1, prev.c2, cur.c1, cur.c2, 0.66, 0.66);
-  quad(k + 36, prev.r1, prev.r2, cur.r1, cur.r2, 1.15, 1.0);
-  tGeo.attributes.position.needsUpdate = true; tGeo.attributes.color.needsUpdate = true;
+  for (let i = 0; i < QUADS - 1; i++) quad(k + i * 18, prev[i], prev[i + 1], cur[i], cur[i + 1], SHADE[i], SHADE[i + 1]);
+  tGeo.attributes.position.needsUpdate = true; tGeo.attributes.color.needsUpdate = true; tGeo.attributes.normal.needsUpdate = true;
   prev = cur;
 }
 

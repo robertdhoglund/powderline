@@ -1,6 +1,6 @@
-# POWDERLINE (v0.3)
+# POWDERLINE (v0.4)
 
-A browser game: carve down a steep mountain at dusk, draw a bow in slow motion, shatter ice. One run takes about a minute. The goal is **feel first, features second**.
+A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 
 **Tech:** vanilla JavaScript modules + [Three.js](https://threejs.org/) (bundled in `vendor/`, so it works offline). No framework, no build step, no backend.
 
@@ -30,6 +30,7 @@ Things to know:
 - **Let go to aim.** With no steering input the board follows the piste by itself.
 - **The arrow lands where the reticle points.** It flies a real arc, but the launch is solved for you, with some magnetism near targets. Hitting the glowing core is a PERFECT.
 - **Focus** (the ring around the reticle) is the slow motion. It drains while you hold a draw and refills on kills. When it is empty, your aim sways.
+- **Spin** by holding a direction in the air.
 - **Ice walls** want an arrow. Riding through one costs speed and your flow multiplier, never the run.
 - **Flow** multiplies every score and fades if nothing happens. A tree bonk resets it.
 
@@ -45,7 +46,9 @@ src/player.js       carve physics, air and landings, the posed rider, scarf
 src/camera.js       chase camera
 src/snow.js         powder spray, the trench, speed-line flakes
 src/bow.js          draw, focus, aim solve, arrows
-src/targets.js      sentries, pacers, gates
+src/targets.js      goblins (tower lookouts, balloon goblins, sled raiders) and gates
+src/props.js        watchtowers, torches, pennants
+src/build.js        small kit for building merged low-poly models
 src/ice.js          pre-fractured ice sheets and walls
 src/fx.js           debris, shockwaves, ribbons, hit-stop, shake
 src/hud.js          score, flow, reticle, screens

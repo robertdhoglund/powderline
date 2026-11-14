@@ -1,6 +1,6 @@
 // POWDERLINE: boot, input, game modes and the frame loop. Each system lives in its own module.
 import { G, resetState } from './state.js';
-import { composer, camera, updateWorld, watchPerformance, TOUCH } from './world.js';
+import { composer, camera, updateWorld, watchPerformance, sunFocus, TOUCH } from './world.js';
 import { FINISH, gates, dcx } from './course.js';
 import { P, updatePlayer, resetPlayer } from './player.js';
 import { updateCamera, resetCamera, titleCamera } from './camera.js';
@@ -8,6 +8,7 @@ import { updateSnow, resetSnow } from './snow.js';
 import { updateFx, resetFx } from './fx.js';
 import { updateTargets, resetTargets, enemies } from './targets.js';
 import { updateIce, resetIce } from './ice.js';
+import './props.js';
 import { updateBow, resetBow, startDraw, release, cancelDraw, focusScale } from './bow.js';
 import { updateHud, showHud, showOverlay, pop } from './hud.js';
 import { initAudio, setRide, silence } from './audio.js';
@@ -127,6 +128,7 @@ function step(rdt) {
     if (G.mode === 'run' && P.d >= FINISH) finish();
   } else titleCamera(G.rt);
   updateSnow(dt, rdt); updateFx(dt);
+  sunFocus(P.pos);
   updateWorld(P.d, G.rt, live ? clamp((P.v - 20) / 26, 0, 1) * (1 - G.aim.blend * 0.7) : 0);
 }
 function frame(now) {
@@ -140,4 +142,4 @@ document.body.classList.toggle('touch', TOUCH);
 reset(); G.rtRun = 0;
 updatePlayer(0.016); showOverlay('title');
 requestAnimationFrame(frame);
-window.__pl = { G, P, start, reset, sim: (seconds) => { for (let i = 0; i < seconds * 60 && G.mode === 'run'; i++) step(1 / 60); } };
+window.__pl = { G, P, start, reset, camera, composer, enemies, sim: (seconds) => { for (let i = 0; i < seconds * 60 && G.mode === 'run'; i++) step(1 / 60); } };

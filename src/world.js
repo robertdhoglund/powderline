@@ -30,7 +30,7 @@ export const lens = new ShaderPass({
     float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main(){
       vec2 c = vUv - vec2(0.5, 0.46); float r2 = dot(c, c);
-      vec2 dir = c * r2 * uSpeed * 0.16; vec3 col = vec3(0.0);
+      vec2 dir = c * r2 * uSpeed * 0.06; vec3 col = vec3(0.0);
       for (int i = 0; i < 5; i++) col += texture2D(tDiffuse, vUv - dir * float(i)).rgb;
       col /= 5.0;
       vec2 ca = c * r2 * 0.005;
@@ -65,7 +65,8 @@ const C = (hex) => new THREE.Color(hex);
 const DUSK = { top: C('#1b1450'), mid: C('#7a3a8c'), hor: C('#ff9a72'), sun: C('#fff0cc'), halo: C('#ff7448'), sky: C('#9d8fe8'), gnd: C('#4b3d92'), light: C('#ffb88e'), shade: C('#6a62c8'), stars: 0.2, aurora: 0 };
 const GLOW = { top: C('#120c40'), mid: C('#5a2890'), hor: C('#ff5c9f'), sun: C('#ffe2ec'), halo: C('#ff3a8a'), sky: C('#8478ea'), gnd: C('#3b2c86'), light: C('#ff98be'), shade: C('#5a4fc4'), stars: 0.55, aurora: 0.15 };
 const NIGHT = { top: C('#030821'), mid: C('#0e3568'), hor: C('#36d9cb'), sun: C('#ecffff'), halo: C('#2fcfdc'), sky: C('#4f86e6'), gnd: C('#1a2760'), light: C('#aef2ff'), shade: C('#2a55b8'), stars: 1.0, aurora: 1 };
-const PAL = [[0, DUSK], [0.3, DUSK], [0.5, GLOW], [0.64, GLOW], [0.84, NIGHT], [1.5, NIGHT]];
+const DAWN = { top: C('#27407e'), mid: C('#c96a8a'), hor: C('#ffc46a'), sun: C('#fff6d8'), halo: C('#ff9a3a'), sky: C('#b9a8e8'), gnd: C('#5a4a8e'), light: C('#ffd0a0'), shade: C('#6a6ac8'), stars: 0.1, aurora: 0 };
+const PAL = [[0, DUSK], [0.2, DUSK], [0.34, GLOW], [0.46, GLOW], [0.6, NIGHT], [0.8, NIGHT], [0.93, DAWN], [1.5, DAWN]];
 const KEYS = ['top', 'mid', 'hor', 'sun', 'halo', 'sky', 'gnd', 'light', 'shade'];
 export const pal = { top: C(0), mid: C(0), hor: C(0), sun: C(0), halo: C(0), sky: C(0), gnd: C(0), light: C(0), shade: C(0), fog: C(0), stars: 0, aurora: 0 };
 
@@ -74,7 +75,13 @@ const sunView = new THREE.Vector3();
 const hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 1.55);
 const sun = new THREE.DirectionalLight(0xffffff, 2.3);
 sun.position.copy(sunDir).multiplyScalar(100);
-scene.add(hemi, sun);
+// Real shadows for the rider, goblins and props: a small shadow box that travels with the rider.
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+sun.castShadow = true; sun.shadow.mapSize.set(TOUCH ? 1024 : 2048, TOUCH ? 1024 : 2048);
+Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 260 });
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.06;
+scene.add(hemi, sun, sun.target);
+export function sunFocus(p) { sun.target.position.copy(p); sun.position.copy(p).addScaledVector(sunDir, 110); sun.target.updateMatrixWorld(); }
 scene.fog = new THREE.FogExp2(0xffffff, 0.0027);
 
 // Rim light: every lit surface picks up the low sun along its silhouette.
@@ -153,6 +160,10 @@ const ridges = [];
   }
 }
 
+const cullers = [], VIEW = 640, CHUNK = 160;
+const chunkOf = (d) => Math.floor((d - D_MIN) / CHUNK);
+function chunked(mesh, c) { mesh.frustumCulled = false; scene.add(mesh); const d0 = D_MIN + c * CHUNK; cullers.push((d) => { mesh.visible = d0 + CHUNK > d - 110 && d0 < d + VIEW; }); }
+
 // ---- long tree shadows, painted once into a map of the course ----------------------------
 const SH_W = 256, SH_H = 4096, U_SPAN = 128, D_SPAN = D_MAX - D_MIN;
 const shadowTex = (() => {
@@ -226,7 +237,9 @@ const shadowTex = (() => {
         #include <opaque_fragment>`);
   };
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.frustumCulled = false; scene.add(mesh);
+  mesh.frustumCulled = false; mesh.receiveShadow = true; scene.add(mesh);
+  // Only the stretch of mountain near the rider is drawn.
+  cullers.push((d) => { const r0 = clamp(Math.floor((d - 110 - D_MIN) / rowStep), 0, rows), r1 = clamp(Math.ceil((d + VIEW - D_MIN) / rowStep), 0, rows); geo.setDrawRange(r0 * cols * 6, (r1 - r0) * cols * 6); });
 }
 
 // ---- trees: layered, snow-laden firs --------------------------------------------------------
@@ -261,17 +274,17 @@ function firGeometry(tiers, girth, seed) {
 {
   const mat = rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 0.3, 2.5);
   const kinds = [firGeometry(5, 1.0, 11), firGeometry(6, 0.72, 23), firGeometry(4, 1.15, 37)];
-  const groups = kinds.map(() => []);
-  trees.forEach((t, i) => groups[i % kinds.length].push(t));
+  const groups = new Map();
+  trees.forEach((t, i) => { const key = chunkOf(-t.z) * 3 + (i % 3); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); });
   const o = new THREE.Object3D(), c = new THREE.Color();
-  kinds.forEach((geo, gi) => {
-    const m = new THREE.InstancedMesh(geo, mat, groups[gi].length);
-    groups[gi].forEach((t, i) => {
+  for (const [key, list] of groups) {
+    const m = new THREE.InstancedMesh(kinds[key % 3], mat, list.length);
+    list.forEach((t, i) => {
       o.position.set(t.x, height(t.x, t.z) - 0.5, t.z); o.rotation.set((t.tint - 0.5) * 0.1, t.rot, (t.rot % 1 - 0.5) * 0.08);
       o.scale.set(t.s, t.s * (0.85 + t.tint * 0.4), t.s); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, c.setScalar(0.8 + t.tint * 0.45));
     });
-    m.frustumCulled = false; scene.add(m);
-  });
+    chunked(m, Math.floor(key / 3));
+  }
 }
 
 // ---- rocks: dark outcrops with snow on top, thickest on the steep pitches --------------------
@@ -289,17 +302,19 @@ function firGeometry(tiers, girth, seed) {
     for (let j = 0; j < 3; j++) col.push(c.r, c.g, c.b);
   }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  const N = 260, m = new THREE.InstancedMesh(geo, rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 0.45, 2.5), N), o = new THREE.Object3D();
+  const N = 560, mat = rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 0.45, 2.5), o = new THREE.Object3D(), lists = new Map();
   for (let i = 0; i < N; i++) {
     let d = 0; for (let tries = 0; tries < 6; tries++) { d = D_MIN + 30 + r() * (D_MAX - D_MIN - 60); if (r() < slopeAt(d) * 0.9) break; }
     const steep = slopeAt(d), a = 3.5 + Math.pow(r(), 1.4) * 40, x = cx(d) + (r() < 0.5 ? -1 : 1) * (widthAt(d) + a), z = -d, s = (1.2 + r() * 2.6) * (1 + steep) * (0.7 + a * 0.02);
-    o.position.set(x, height(x, z) - s * 0.15, z); o.rotation.set(r() * 0.5, r() * 6.283, r() * 0.5); o.scale.set(s, s * (0.7 + r() * 0.9), s); o.updateMatrix(); m.setMatrixAt(i, o.matrix);
+    o.position.set(x, height(x, z) - s * 0.15, z); o.rotation.set(r() * 0.5, r() * 6.283, r() * 0.5); o.scale.set(s, s * (0.7 + r() * 0.9), s); o.updateMatrix();
+    const c = chunkOf(d); if (!lists.has(c)) lists.set(c, []); lists.get(c).push(o.matrix.clone());
   }
-  m.frustumCulled = false; scene.add(m);
+  for (const [c, list] of lists) { const m = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((mx, i) => m.setMatrixAt(i, mx)); chunked(m, c); }
 }
 
 const _c = new THREE.Color(), BLACK = new THREE.Color(0);
 export function updateWorld(d, time, speed = 0) {
+  for (const f of cullers) f(d);
   const p = clamp(d / FINISH, 0, 1.2);
   let i = 0; while (i < PAL.length - 2 && p > PAL[i + 1][0]) i++;
   const a = PAL[i][1], b = PAL[i + 1][1], t = clamp((p - PAL[i][0]) / (PAL[i + 1][0] - PAL[i][0]), 0, 1);
