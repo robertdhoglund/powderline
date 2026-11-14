@@ -1,0 +1,9 @@
+{
+  "name": "powderline",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Small snowboarding, archery and shattering ice browser game",
+  "scripts": {"dev": "python3 -m http.server 8000", "check": "node --check src/main.js"},
+  "license": "UNLICENSED"
+}
