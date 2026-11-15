@@ -12,7 +12,7 @@ let camH = 0, camS = 0.3, lagX = 0, roll = 0, fov = T.fovBase, punch = 0, snap =
 export function resetCamera() { snap = true; camH = 0; camS = slopeAt(P.d); lagX = 0; roll = 0; punch = 0; }
 
 export function updateCamera(rdt) {
-  const aim = (G.aim.zoom || 0) * 0.8 + G.aim.blend * 0.2, sp = clamp((P.v - 12) / 34, 0, 1);
+  const aim = G.aim.zoom || 0, sp = clamp((P.v - 12) / 34, 0, 1);
   // Follow the course direction more than the board, so hard carves swing the rider across the frame.
   const k = snap ? 1 : 1 - Math.exp(-3.2 * rdt);
   camH += ((Math.atan(dcx(P.d + 18)) * 0.65 + P.h * 0.35) - camH) * k;

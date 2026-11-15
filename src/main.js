@@ -1,6 +1,6 @@
 // POWDERLINE: boot, input, game modes and the frame loop. Each system lives in its own module.
 import { G, resetState } from './state.js';
-import { composer, camera, updateWorld, watchPerformance, sunFocus, TOUCH } from './world.js';
+import { composer, camera, scene, renderer, updateWorld, watchPerformance, sunFocus, TOUCH } from './world.js';
 import { FINISH, gates, dcx } from './course.js';
 import { P, updatePlayer, resetPlayer } from './player.js';
 import { updateCamera, resetCamera, titleCamera } from './camera.js';
@@ -161,4 +161,4 @@ reset(); G.rtRun = 0;
 updatePlayer(0.016);
 if (save.autostart) { save.autostart = false; persist(); start(); } else showOverlay('title');
 requestAnimationFrame(frame);
-window.__pl = { G, P, start, reset, save, camera, composer, enemies, sim: (seconds) => { for (let i = 0; i < seconds * 60 && G.mode === 'run'; i++) step(1 / 60); } };
+window.__pl = { G, P, start, reset, save, scene, renderer, camera, composer, enemies, sim: (seconds) => { for (let i = 0; i < seconds * 60 && G.mode === 'run'; i++) step(1 / 60); } };

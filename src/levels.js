@@ -20,7 +20,7 @@ export const LEVELS = [
     sections: [['start', 4, 0.3, 10, 0.2], ['pitch', 8, 1.1, 9, 0.4, 26], ['couloir', 10, 1.25, 5.5, 0.6], ['cliffs', 12, 0.7, 10, 0.4], ['camp', 14, 0.5, 11, 0.6], ['fall', 5, 1.4, 9, 0.3, 20],
       ['slalom', 24, 0.65, 9, 1.2], ['couloir', 8, 1.3, 5.5, 0.7], ['ice', 12, 0.3, 13, 0.12], ['fall', 4, 1.35, 10, 0.2, 18], ['cliffs', 10, 0.7, 10, 0.4], ['couloir', 8, 1.3, 5.5, 0.6], ['park', 16, 0.5, 11, 0.25],
       ['fall', 6, 1.4, 9, 0.3, 24], ['runout', 8, 0.1, 14, 0.1, 40]] },
-  { id: 'alaska', name: 'AURORA SPINES', place: 'ALASKA', time: 'POLAR DAWN', blurb: 'Above the treeline: huge open faces and cliff after cliff', seed: 51, throws: 1.5, sunY: 0.14, landmark: 'spines', gate: 'arch', kinds: [1, 1, 0], treeDensity: 0.22, rocks: 1100,
+  { id: 'alaska', name: 'AURORA SPINES', place: 'ALASKA', time: 'POLAR DAWN', blurb: 'Above the treeline: huge open faces and cliff after cliff', seed: 51, throws: 1.5, sunY: 0.14, landmark: 'spines', gate: 'totem', kinds: [1, 1, 0], treeDensity: 0.22, rocks: 1100,
     spray: 1.2, flakes: 1.4, fog: 0.0022, par: 71,
     pal: [[0, 'NIGHT'], [0.45, 'NIGHT'], [0.7, 'DAWN'], [0.95, 'MORNING'], [1.5, 'MORNING']],
     sections: [['start', 5, 0.3, 14, 0.2], ['spine', 12, 1.2, 15, 0.3], ['ice', 12, 0.3, 14, 0.12], ['fall', 5, 1.35, 12, 0.2, 18], ['camp', 16, 0.45, 14, 0.5], ['spine', 10, 1.3, 15, 0.3],

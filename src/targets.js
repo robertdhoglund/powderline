@@ -68,23 +68,32 @@ sentries.forEach((s) => makeEnemy('sentry', s));
 pacers.forEach((s) => makeEnemy('pacer', s));
 
 // Gates are arches of light across the line.
-const archGeo = new THREE.TorusGeometry(2.9, 0.07, 6, 40, Math.PI), footGeo = new THREE.OctahedronGeometry(0.28, 0);
+// Gates: every mountain has its own, in strong colour, with a bright line across the snow between the posts.
 const poleMat = new THREE.MeshBasicMaterial({ color: VIOLET }), poleHit = new THREE.MeshBasicMaterial({ color: GOLD }), gateToon = toon(0.5, 0.35);
-// Japan rides through torii; France through race gates, red then blue.
-const VERM = [1.25, 0.2, 0.14];
-const toriiGeo = merge([part(cyl(0.17, 0.2, 4.4, 8), VERM, [-2.9, 2.2, 0]), part(cyl(0.17, 0.2, 4.4, 8), VERM, [2.9, 2.2, 0]), part(box(7.9, 0.34, 0.55), VERM, [0, 4.55, 0]), part(box(8.3, 0.2, 0.7), '#1d1626', [0, 4.82, 0]),
-  part(box(8.3, 0.16, 0.74), '#e6e2ff', [0, 4.98, 0]), part(box(6.6, 0.24, 0.32), VERM, [0, 3.7, 0]), part(box(0.3, 0.6, 0.3), VERM, [0, 4.15, 0]), part(box(0.6, 0.4, 0.6), '#4a4866', [-2.9, 0.2, 0]), part(box(0.6, 0.4, 0.6), '#4a4866', [2.9, 0.2, 0])]);
-const raceGeo = (c) => merge([-1, 1].flatMap((s) => [part(cyl(0.045, 0.045, 2.6, 5), c, [s * 2.9, 1.3, 0]), part(cyl(0.045, 0.045, 2.6, 5), c, [s * 3.7, 1.3, 0]), part(box(0.8, 0.75, 0.04), c, [s * 3.3, 2.1, 0])]));
-const raceRed = raceGeo([1.5, 0.16, 0.2]), raceBlue = raceGeo([0.2, 0.5, 1.7]);
+const VERM = [1.25, 0.2, 0.14], WOODC = '#3a2218';
+const stripe = (c) => part(box(5.6, 0.05, 0.7), c, [0, 0.07, 0]);
+const pennants = (y, cols) => [part(box(5.8, 0.05, 0.05), '#e8dcc8', [0, y, 0]), ...[-2.2, -1.32, -0.44, 0.44, 1.32, 2.2].map((x, i) => part(cone(0.3, 0.62, 3), cols[i % cols.length], [x, y - 0.36 - (1 - Math.abs(x) / 2.9) * 0.18, 0], [Math.PI, 0, 0], [1, 1, 0.1]))];
+const GATES = {
+  // Norway: carved posts with gold dragon curls and a line of pennants.
+  arch: () => merge([...[-1, 1].flatMap((s) => [part(cyl(0.15, 0.2, 4.2, 8), WOODC, [s * 2.9, 2.1, 0]), part(new THREE.TorusGeometry(0.34, 0.09, 6, 12, 4.4), [1.7, 1.05, 0.2], [s * 2.72, 4.3, 0], [0, s > 0 ? 0 : Math.PI, 1.2]),
+    part(sph(0.13, 6, 5), [0.6, 2.4, 2.8], [s * 2.9, 3.3, 0.17]), part(box(0.5, 0.36, 0.5), '#4a4866', [s * 2.9, 0.18, 0])]), ...pennants(3.9, [[1.6, 0.22, 0.28], [1.7, 1.15, 0.2], [0.2, 1.25, 1.35]]), stripe([1.7, 0.3, 0.75])]),
+  // Japan: torii.
+  torii: () => merge([part(cyl(0.17, 0.2, 4.4, 8), VERM, [-2.9, 2.2, 0]), part(cyl(0.17, 0.2, 4.4, 8), VERM, [2.9, 2.2, 0]), part(box(7.9, 0.34, 0.55), VERM, [0, 4.55, 0]), part(box(8.3, 0.2, 0.7), '#1d1626', [0, 4.82, 0]),
+    part(box(8.3, 0.16, 0.74), '#e6e2ff', [0, 4.98, 0]), part(box(6.6, 0.24, 0.32), VERM, [0, 3.7, 0]), part(box(0.3, 0.6, 0.3), VERM, [0, 4.15, 0]), part(box(0.6, 0.4, 0.6), '#4a4866', [-2.9, 0.2, 0]), part(box(0.6, 0.4, 0.6), '#4a4866', [2.9, 0.2, 0]),
+    part(sph(0.26, 8, 6), [3.0, 1.5, 0.5], [0, 3.2, 0], [0, 0, 0], [1, 1.25, 1]), stripe([1.7, 0.9, 0.3])]),
+  // France: race gates, red then blue.
+  race: (i) => { const c = i % 2 ? [0.2, 0.5, 1.8] : [1.6, 0.16, 0.2]; return merge([...[-1, 1].flatMap((s) => [part(cyl(0.05, 0.05, 3.0, 5), c, [s * 2.9, 1.5, 0]), part(cyl(0.05, 0.05, 3.0, 5), c, [s * 3.9, 1.5, 0]), part(box(1.0, 0.95, 0.05), c, [s * 3.4, 2.4, 0])]), stripe(c)]); },
+  // Alaska: small totems holding a bar of ice-blue lanterns.
+  totem: () => merge([...[-1, 1].flatMap((s) => [['#b83232', 0.6], ['#1f6f7a', 1.8], ['#e0a030', 3.0]].flatMap(([c, y]) => [part(box(0.7, 1.15, 0.7), c, [s * 2.9, y, 0]), part(sph(0.09, 6, 5), [0.7, 2.6, 3.0], [s * 2.9 - 0.17, y + 0.15, 0.37]), part(sph(0.09, 6, 5), [0.7, 2.6, 3.0], [s * 2.9 + 0.17, y + 0.15, 0.37])])),
+    part(box(6.9, 0.2, 0.28), '#b83232', [0, 3.75, 0]), ...[-1.6, 0, 1.6].flatMap((x) => [part(box(0.03, 0.5, 0.03), '#1d1626', [x, 3.4, 0]), part(sph(0.24, 8, 6), [0.5, 2.3, 2.8], [x, 3.0, 0], [0, 0, 0], [1, 1.2, 1])]), stripe([0.4, 1.6, 2.0])]),
+};
+const GATE_COLORS = { arch: [[1.8, 0.3, 0.8], [1.8, 1.2, 0.2], [0.2, 1.4, 1.5]], torii: [[1.8, 0.3, 0.2], [1.9, 1.2, 0.3]], race: [[1.7, 0.2, 0.25], [0.25, 0.6, 1.9], [2, 2, 2]], totem: [[0.4, 1.8, 2.2], [1.8, 0.3, 0.3], [1.8, 1.2, 0.2]] };
+const gateKind = GATES[LEVEL.gate] ? LEVEL.gate : 'arch', gateCols = GATE_COLORS[gateKind].map((c) => new THREE.Color(...c));
+const gateGeos = gateKind === 'race' ? [GATES.race(0), GATES.race(1)] : [GATES[gateKind]()];
 const gateObjs = gates.map((g, i) => {
   const x = cx(g.d) + g.u, z = -g.d, m = new THREE.Group();
-  if (LEVEL.gate === 'torii' || LEVEL.gate === 'race') {
-    const o = new THREE.Mesh(LEVEL.gate === 'torii' ? toriiGeo : i % 2 ? raceBlue : raceRed, gateToon); o.userData.mat = gateToon; o.castShadow = true; m.add(o);
-  } else {
-    m.add(new THREE.Mesh(archGeo, poleMat));
-    for (const s of [-1, 1]) { const f = new THREE.Mesh(footGeo, poleMat); f.position.set(s * 2.9, 0.25, 0); m.add(f); }
-  }
-  m.position.set(x, height(x, z) - 0.15, z); m.rotation.y = -Math.atan(dcx(g.d)); scene.add(m);
+  const o = new THREE.Mesh(gateGeos[i % gateGeos.length], gateToon); o.userData.mat = gateToon; o.castShadow = true; m.add(o);
+  m.position.set(x, height(x, z) - 0.1, z); m.rotation.y = -Math.atan(dcx(g.d)); scene.add(m);
   return { ...g, poles: [m], state: 0, t: 0 };
 });
 // Finish: a row of tall lights across the runout.
@@ -105,7 +114,7 @@ export function killEnemy(e, perfect, dir) {
   if (e.pos2) { burst(e.pos2, 26, FLAME, { speed: 14, size: 0.5, life: 0.9, up: 1 }); ring(e.pos2, FLAME, 9, 0.4); }
   else snow.puff(e.pos, 30, 1.3);
   ring(e.pos, GOLD, perfect ? 12 : 7, perfect ? 0.5 : 0.38);
-  shake(perfect ? 0.45 : 0.3); G.punch += perfect ? 0.3 : 0.18;
+  shake(perfect ? 0.22 : 0.14);
   sfx('hit', G.flow); if (perfect) sfx('perfect');
   G.stats.kills++; if (perfect) G.stats.perfect++;
   G.aim.focus = Math.min(1, G.aim.focus + 0.4);
@@ -184,7 +193,10 @@ export function updateTargets(dt) {
     if (g.state === 0 && P.d >= g.d) {
       if (Math.abs(P.u - g.u) < 2.9 && P.alt < 5 && G.mode === 'run') {
         g.state = 1; g.t = 0; G.stats.gates++; sfx('gate', G.flow); award(60, 'GATE');
-        g.poles.forEach((p) => { p.children.forEach((c) => { if (!c.userData.mat) c.material = poleHit; }); burst(_prev.copy(p.position).setY(p.position.y + 2.6), 14, GOLD, { speed: 7, size: 0.14, up: 3, life: 0.7 }); });
+        // Through the gate: a kick of speed, a ring of light and a burst of confetti in the gate's colours.
+        P.v = Math.min(P.v + 1.6, 52); _prev.copy(g.poles[0].position).setY(g.poles[0].position.y + 1.6);
+        ring(_prev, gateCols[0], 7, 0.4);
+        gateCols.forEach((c) => burst(_prev, 9, c, { speed: 8, size: 0.13, up: 5, life: 0.9, gravity: 12, dir: _t.set(P.vel.x * 0.6, 0, P.vel.z * 0.6) }));
       } else g.state = 2;
     }
     if (g.state === 1) { g.t += dt; const k = clamp(g.t / 0.5, 0, 1); g.poles.forEach((p) => p.scale.setScalar(p.children[0].userData.mat ? 1 + Math.sin(k * 3.14) * 0.18 : Math.max(0.01, 1 + Math.sin(k * 3.14) * 0.45 - k * k))); }

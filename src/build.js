@@ -1,6 +1,6 @@
 // Tiny model-building kit: describe a figure as coloured primitives, merge them into one mesh (one draw call).
 import * as THREE from 'three';
-import { rim } from './world.js';
+import { rim, RAMP } from './world.js';
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
 // part(geometry, colour, position, rotation, scale). A colour brighter than 1 glows.
@@ -31,7 +31,7 @@ export function merge(parts) {
 }
 // Lit, rim-lit, vertex-coloured material. Any vertex colour above 1.0 is treated as its own light.
 export function toon(rimK = 0.7, lift = 0.22) {
-  const m = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const m = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: RAMP });
   rim(m, rimK, 2.2);
   const base = m.onBeforeCompile;
   m.onBeforeCompile = (sh) => { base(sh); sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `outgoingLight += max(vColor.rgb - 1.0, 0.0) * 1.6 + min(vColor.rgb, 1.0) * ${lift.toFixed(2)};\n#include <opaque_fragment>`); };
@@ -41,12 +41,12 @@ export function toon(rimK = 0.7, lift = 0.22) {
 
 // Ink outline: a slightly swollen, back-facing copy drawn in one dark colour. Gives figures a drawn edge.
 export const ink = new THREE.ShaderMaterial({
-  side: THREE.BackSide, uniforms: { uT: { value: 0.02 }, uCol: { value: new THREE.Color('#120a36') } },
+  side: THREE.BackSide, uniforms: { uT: { value: 0.01 }, uCol: { value: new THREE.Color('#231a58') } },
   vertexShader: `uniform float uT; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0);
     mv.xyz += normalize(normalMatrix * normal) * uT * (1.0 - mv.z * 0.035) * clamp(1.7 + mv.z / 90.0, 0.0, 1.0); gl_Position = projectionMatrix * mv; }`,
   fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor = vec4(uCol, 1.0); }`,
 });
 export function outline(root) {
-  const list = []; root.traverse((o) => { if (o.isMesh && o.material.isMeshLambertMaterial) list.push(o); });
+  const list = []; root.traverse((o) => { if (o.isMesh && (o.material.isMeshLambertMaterial || o.material.isMeshToonMaterial)) list.push(o); });
   for (const o of list) { const m = new THREE.Mesh(o.geometry, ink); m.frustumCulled = false; o.add(m); }
 }

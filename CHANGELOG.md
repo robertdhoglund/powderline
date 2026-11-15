@@ -1,5 +1,42 @@
 # Changes and handoffs
 
+## v0.8 | 2026-11-15 | Claude
+
+Shot stutter fixed, a reticle and gates you can see, and a large art pass toward a cel-shaded, anime-leaning look.
+
+**Changed**
+
+- **Shot stutter fixed.** While you drew, the camera crept 20% of the way into its zoom, then snapped back on release, and the release also kicked and shook the camera. Quick shots now leave the camera alone; it only moves when you hold for slow motion. Hit shake is halved and the camera kick on hits is gone.
+- **Reticle.** Larger, pink with a dark edge so it reads on white snow and on dark trees. Gold on a lock, white at full draw, thicker focus ring.
+- **Gates on every mountain**, each with a bright line across the snow between the posts:
+  - Norway: carved posts with gold dragon curls and a line of red, gold and teal pennants.
+  - Japan: torii, now with a lantern.
+  - France: bigger red and blue race gates.
+  - Alaska: small totems holding a bar of ice-blue lanterns.
+  Passing one gives a small kick of speed, a ring of light and confetti in the gate's colours.
+- **Cel shading.** The rider, goblins, props, gates and trees are lit in a few flat steps, like painted animation, with a rim of sun colour.
+- **Rider remodelled.**
+  - A drawn face wrapped round the head: large green eyes with glints, lashes, brows, blush, a small mouth.
+  - Flat bangs over the forehead, big swept-back hair spikes, side locks, a cowlick, pointed ears.
+  - Navy leggings in one colour from hip to boot (no more ball-joint knees), pale chunky boots with dark soles in bindings, gloves, slimmer arms, a trimmer tunic.
+- **Trees remodelled.** Smooth firs with scalloped, drooping boughs and a shelf of snow on each tier, replacing the faceted cone stacks.
+- **Outlines** are half as thick and dark violet instead of near-black.
+
+**Tested**
+
+- `npm run check` and `npm test` pass.
+- Close-ups of the rider and a gameplay frame were reviewed.
+- **Performance is unverified and may be worse.** The headless software renderer ran this version noticeably slower than v0.7, but that machine was too noisy to say why or by how much. Watch the frame rate on the phone.
+- Only Norway's gates were looked at in a frame; the Alaska and France gate models were not reviewed visually.
+
+**Known issues**
+
+- The cape is still a stiff sheet at speed.
+- The back of the hair is a ball with spikes.
+- Goblins got the cel shading but not a remodel.
+
+---
+
 ## v0.7 | 2026-11-15 | Claude
 
 No more pauses, ranks you can read, and four mountains that ride differently.

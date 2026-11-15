@@ -84,7 +84,7 @@ export function release() {
       x.state = 1; x.t = 0; x.mesh.visible = true; x.trail.mesh.visible = true; x.pts.forEach((p) => p.copy(x.pos));
     }
   }
-  G.punch += 0.12; shake(0.1 + A.draw * 0.1); sfx('release'); A.draw = 0;
+  sfx('release'); A.draw = 0;
 }
 
 function segDist(p0, p1, c) {

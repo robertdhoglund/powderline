@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { G } from './state.js';
 import { T } from './config.js';
 import { height, grad, cx, dcx, widthAt, trees } from './course.js';
-import { scene, rim } from './world.js';
+import { scene, rim, cel } from './world.js';
 import { outline } from './build.js';
 import { clamp, damp, lerp, rand, wrapPi } from './util.js';
 import * as snow from './snow.js';
@@ -23,11 +23,34 @@ const solids = trees.filter((t) => t.solid);
 
 // ---- model ------------------------------------------------------------------------------
 export const rider = new THREE.Group(); rider.rotation.order = 'YXZ'; rider.scale.setScalar(1.5); scene.add(rider);
-const lam = (c, e = 0.3, k = 0.8) => rim(new THREE.MeshLambertMaterial({ color: c, emissive: c, emissiveIntensity: e }), k, 2.2);
+const lam = (c, e = 0.3, k = 0.7) => cel({ color: c, emissive: c, emissiveIntensity: e }, k, 2.2);
 const glow = (c, k) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) });
-// The hero: a young ranger. Emerald tunic, cream sleeves, tall leather boots, copper hair, an ochre cape that flies behind.
-const M = { tunic: lam('#1fa36c', 0.3), cream: lam('#f3e8d2', 0.3), sand: lam('#d9c7a4', 0.28), leather: lam('#74442a', 0.3), skin: lam('#f4c8a0', 0.4), hair: lam('#d8622a', 0.45),
-  cape: lam('#e0a030', 0.4), dark: lam('#1b1640', 0.15), suit: lam('#2b2470', 0.2), hot: glow('#ffd070', 2.2), gold: glow('#ffc46b', 2.6), bowGlow: glow('#fff1dc', 0.95), eye: lam('#1b1640', 0), white: lam('#ffffff', 0.5, 0), trim: lam('#f0b83a', 0.7, 0.4) };
+// The face is drawn, not modelled: big eyes, lashes, brows, blush, a small mouth, painted onto the head.
+function faceTexture() {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const g = cv.getContext('2d');
+  g.fillStyle = '#f7d2ae'; g.fillRect(0, 0, 512, 256);
+  const cx0 = 384, cy = 136;
+  for (const sd of [-1, 1]) {
+    const x = cx0 + sd * 31;
+    g.fillStyle = 'rgba(255,120,130,0.33)'; g.beginPath(); g.ellipse(x + sd * 8, cy + 26, 15, 8, 0, 0, 6.3); g.fill();                 // blush
+    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(x, cy, 13, 18, 0, 0, 6.3); g.fill();                                               // eye white
+    const ir = g.createLinearGradient(0, cy - 16, 0, cy + 16); ir.addColorStop(0, '#0f5a4a'); ir.addColorStop(1, '#4fe0a8');
+    g.fillStyle = ir; g.beginPath(); g.ellipse(x, cy + 2, 10.5, 15, 0, 0, 6.3); g.fill();                                                // iris
+    g.fillStyle = '#10202a'; g.beginPath(); g.ellipse(x, cy + 2, 5, 8.5, 0, 0, 6.3); g.fill();                                          // pupil
+    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x - 4, cy - 6, 4, 0, 6.3); g.fill(); g.beginPath(); g.arc(x + 4, cy + 9, 2, 0, 6.3); g.fill();   // glints
+    g.strokeStyle = '#3a1c14'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.ellipse(x, cy, 14, 19, 0, Math.PI * 1.08, Math.PI * 1.92); g.stroke();   // lash
+    g.lineWidth = 2.5; g.beginPath(); g.moveTo(x + sd * 13, cy - 8); g.lineTo(x + sd * 19, cy - 13); g.stroke();
+    g.strokeStyle = '#a84a1e'; g.lineWidth = 5; g.beginPath(); g.moveTo(x - sd * 14, cy - 31); g.quadraticCurveTo(x, cy - 38, x + sd * 15, cy - 30); g.stroke();   // brow
+  }
+  g.strokeStyle = '#c98a66'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(cx0 - 2, cy + 20); g.lineTo(cx0 + 2, cy + 24); g.stroke();              // nose
+  g.strokeStyle = '#8a3a2a'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx0 - 9, cy + 40); g.quadraticCurveTo(cx0, cy + 47, cx0 + 9, cy + 40); g.stroke();   // mouth
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const faceMap = faceTexture();
+// The hero: a young ranger. Emerald tunic, cream sleeves, navy leggings, pale chunky boots, copper hair, an ochre cape.
+const M = { tunic: lam('#1fa36c', 0.34), cream: lam('#f6ecd8', 0.34), legs: lam('#2a3484', 0.3), boot: lam('#f2e9d6', 0.36), leather: lam('#8a4a2c', 0.32), skin: lam('#f7d2ae', 0.42), hair: lam('#e0642a', 0.5),
+  face: cel({ map: faceMap, emissive: '#ffffff', emissiveMap: faceMap, emissiveIntensity: 0.42 }, 0.5, 2.2),
+  cape: lam('#e0a030', 0.4), dark: lam('#1b1640', 0.15), suit: lam('#2b2470', 0.2), hot: glow('#ffd070', 2.2), gold: glow('#ffc46b', 2.6), bowGlow: glow('#fff1dc', 0.95), trim: lam('#f4c040', 0.7, 0.4) };
 const add = (geo, m, parent = rider) => { const o = new THREE.Mesh(geo, m); parent.add(o); return o; };
 const ball = (r, m, parent = rider, sx = 1, sy = 1, sz = 1) => { const o = add(new THREE.SphereGeometry(r, 16, 12), m, parent); o.scale.set(sx, sy, sz); return o; };
 const box = (w, h, d, m, parent = rider) => add(new THREE.BoxGeometry(w, h, d), m, parent);
@@ -63,45 +86,42 @@ function deckGeometry(scale, thick) {
 }
 add(deckGeometry(1, 0.03), M.dark, board).position.y = 0.02;
 add(deckGeometry(0.42, 0.006), M.hot, board).position.y = 0.062;
-const bootF = ball(0.1, M.leather, rider, 1.75, 1.05, 1.1), bootB = ball(0.1, M.leather, rider, 1.75, 1.05, 1.1);
-for (const z of [-0.27, 0.27]) box(0.3, 0.05, 0.2, M.suit, board).position.set(0, 0.075, z);
-const thighF = limb(0.095, M.sand, 0.08), shinF = limb(0.088, M.leather, 0.075), thighB = limb(0.095, M.sand, 0.08), shinB = limb(0.088, M.leather, 0.075);
-const kneeF = ball(0.09, M.leather), kneeB = ball(0.09, M.leather);
-const pelvis = ball(0.17, M.sand, rider, 1, 0.8, 1.15);
+// Chunky snowboard boots with dark soles, strapped into bindings.
+const boot = () => { const g = new THREE.Group(); rider.add(g); ball(0.115, M.boot, g, 1.8, 1.15, 1.2); box(0.42, 0.05, 0.25, M.dark, g).position.y = -0.09; box(0.3, 0.04, 0.3, M.leather, g).position.set(0, 0.06, 0); return g; };
+const bootF = boot(), bootB = boot();
+for (const z of [-0.27, 0.27]) box(0.34, 0.04, 0.24, M.suit, board).position.set(0, 0.07, z);
+// Legs are one colour from hip to boot, so the knee reads as a bend, not a ball joint.
+const thighF = limb(0.098, M.legs, 0.082), shinF = limb(0.082, M.legs, 0.098), thighB = limb(0.098, M.legs, 0.082), shinB = limb(0.082, M.legs, 0.098);
+const kneeF = ball(0.082, M.legs), kneeB = ball(0.082, M.legs);
+const pelvis = ball(0.16, M.legs, rider, 1, 0.8, 1.15);
 // Tunic: flared skirt below a belt, drawn as a profile and spun.
-const tunicGeo = new THREE.LatheGeometry([[0.001, 0], [0.3, 0.0], [0.27, 0.12], [0.2, 0.34], [0.195, 0.42], [0.215, 0.7], [0.235, 0.86], [0.19, 0.96], [0.09, 1.03], [0.001, 1.04]].map(([x, y]) => new THREE.Vector2(x, y - 0.5)), 20);
+const tunicGeo = new THREE.LatheGeometry([[0.001, 0], [0.31, 0.0], [0.28, 0.1], [0.19, 0.36], [0.185, 0.43], [0.2, 0.7], [0.225, 0.86], [0.18, 0.96], [0.085, 1.03], [0.001, 1.04]].map(([x, y]) => new THREE.Vector2(x, y - 0.5)), 24);
 const torso = add(tunicGeo, M.tunic); torso.userData.r = 1;
-const belt = add(new THREE.TorusGeometry(0.2, 0.035, 8, 20).rotateX(Math.PI / 2), M.leather, torso); belt.position.y = -0.11; belt.scale.set(1, 1, 1);
-add(new THREE.BoxGeometry(0.07, 0.08, 0.03), M.gold, torso).position.set(0.21, -0.11, 0);
-const shoulders = ball(0.09, M.tunic), shoulderB = ball(0.09, M.tunic);
-const upperF = limb(0.07, M.cream, 0.06), foreF = limb(0.064, M.leather, 0.05), upperB = limb(0.07, M.cream, 0.06), foreB = limb(0.064, M.leather, 0.05);
-const elbowF = ball(0.064, M.cream), elbowB = ball(0.064, M.cream);
-const handF = ball(0.06, M.skin), handB = ball(0.06, M.skin);
-// Head: front is -Z. Big tousled copper hair, pointed ears.
-const head = new THREE.Group(); rider.add(head); head.scale.setScalar(1.18);
-ball(0.165, M.skin, head, 1, 1.05, 1);
-add(new THREE.SphereGeometry(0.185, 16, 10, 0, 6.283, 0, 1.75).rotateX(0.55), M.hair, head).position.set(0, 0.02, 0.02);
-[[0, 0.14, -0.15, -1.9, 0, 0.1, 0.16], [0.08, 0.13, -0.14, -1.8, 0, -0.5, 0.14], [-0.08, 0.13, -0.14, -1.8, 0, 0.5, 0.14], [0.13, 0.1, -0.08, -1.2, 0, -1.2, 0.12], [-0.13, 0.1, -0.08, -1.2, 0, 1.2, 0.12],
-  [0, 0.17, 0.1, 0.9, 0, 0, 0.2], [0.09, 0.12, 0.15, 1.3, 0, -0.4, 0.2], [-0.09, 0.12, 0.15, 1.3, 0, 0.4, 0.2], [0, 0.02, 0.19, 1.9, 0, 0, 0.22], [0, 0.21, 0, 0.2, 0, 0.3, 0.14]]
-  .forEach(([x, y, z, rx, ry, rz, len]) => { const t = add(new THREE.ConeGeometry(0.06, len, 6), M.hair, head); t.position.set(x, y, z); t.rotation.set(rx, ry, rz); });
-for (const sd of [-1, 1]) {
-  const ear = add(new THREE.ConeGeometry(0.035, 0.17, 6), M.skin, head); ear.position.set(sd * 0.185, 0.02, 0.03); ear.rotation.set(0.5, 0, -sd * 1.25);
-  ball(0.017, M.eye, head, 1, 1.2, 0.5).position.set(sd * 0.064, 0.008, -0.168);
-}
-// Face: bright eyes with a glint, brows, nose, a small mouth, side locks.
-for (const sd of [-1, 1]) {
-  ball(0.034, M.white, head, 1, 1.25, 0.6).position.set(sd * 0.066, 0.012, -0.15);
-  ball(0.006, M.white, head).position.set(sd * 0.058, 0.02, -0.178);
-  const brow = box(0.07, 0.016, 0.02, M.hair, head); brow.position.set(sd * 0.068, 0.068, -0.155); brow.rotation.z = sd * 0.22;
-  const lock = add(new THREE.ConeGeometry(0.04, 0.17, 6), M.hair, head); lock.position.set(sd * 0.165, -0.03, -0.075); lock.rotation.set(Math.PI + 0.25, 0, -sd * 0.12);
-}
-add(new THREE.ConeGeometry(0.022, 0.06, 5), M.skin, head).position.set(0, -0.025, -0.172);
-box(0.05, 0.012, 0.02, M.leather, head).position.set(0, -0.075, -0.15);
-// Tunic details: gold hem, cream collar, a strap for the quiver, a belt pouch.
-add(new THREE.TorusGeometry(0.29, 0.022, 6, 22).rotateX(Math.PI / 2), M.trim, torso).position.y = -0.485;
-add(new THREE.ConeGeometry(0.13, 0.16, 8).rotateX(Math.PI), M.cream, torso).position.set(0.04, 0.47, 0);
-{ const strap = add(new THREE.TorusGeometry(0.235, 0.022, 6, 22), M.leather, torso); strap.position.set(0, 0.2, 0); strap.rotation.set(0.5, 1.5708, 0); strap.scale.set(1, 1.35, 1); }
+add(new THREE.TorusGeometry(0.192, 0.034, 8, 22).rotateX(Math.PI / 2), M.leather, torso).position.y = -0.1;
+add(new THREE.BoxGeometry(0.07, 0.085, 0.03), M.gold, torso).position.set(0.2, -0.1, 0);
+add(new THREE.TorusGeometry(0.3, 0.024, 6, 24).rotateX(Math.PI / 2), M.trim, torso).position.y = -0.485;
+add(new THREE.ConeGeometry(0.125, 0.16, 10).rotateX(Math.PI), M.cream, torso).position.set(0.04, 0.47, 0);
+{ const strap = add(new THREE.TorusGeometry(0.225, 0.022, 6, 22), M.leather, torso); strap.position.set(0, 0.2, 0); strap.rotation.set(0.5, 1.5708, 0); strap.scale.set(1, 1.35, 1); }
 box(0.09, 0.11, 0.1, M.leather, torso).position.set(0.12, -0.2, 0.19);
+const shoulders = ball(0.082, M.tunic), shoulderB = ball(0.082, M.tunic);
+const upperF = limb(0.066, M.cream, 0.056), foreF = limb(0.056, M.cream, 0.05), upperB = limb(0.066, M.cream, 0.056), foreB = limb(0.056, M.cream, 0.05);
+const elbowF = ball(0.056, M.cream), elbowB = ball(0.056, M.cream);
+const handF = ball(0.064, M.leather, rider, 1, 1.1, 1), handB = ball(0.064, M.leather, rider, 1, 1.1, 1);
+// Head: front is -Z. The face is a drawing wrapped round the head; the hair is big swept spikes.
+const head = new THREE.Group(); rider.add(head);
+add(new THREE.SphereGeometry(0.19, 28, 20), M.face, head).scale.set(1, 1.04, 0.98);
+add(new THREE.SphereGeometry(0.212, 20, 12, 0, 6.2832, 0, 1.62).rotateX(0.62), M.hair, head).position.set(0, 0.012, 0.03);
+const spike = (x, y, z, rx, ry, rz, len, rad = 0.07, flat = 1) => { const t = add(new THREE.ConeGeometry(rad, len, 8), M.hair, head); t.position.set(x, y, z); t.rotation.set(rx, ry, rz); t.scale.z = flat; return t; };
+// bangs: flat wedges falling over the forehead
+[[-0.12, 0.55], [-0.06, 0.2], [0, 0], [0.065, -0.22], [0.125, -0.5]].forEach(([x, rz], i) => spike(x, 0.105 - Math.abs(x) * 0.25, -0.168 + Math.abs(x) * 0.25, Math.PI - 0.32, 0, rz, 0.17 + (i % 2) * 0.04, 0.05, 0.45));
+// swept-back spikes, a crown, side locks, one cowlick
+[[0, 0.16, 0.14, 1.0, 0, 0, 0.36, 0.1], [0.11, 0.12, 0.15, 1.15, 0, -0.45, 0.32, 0.09], [-0.11, 0.12, 0.15, 1.15, 0, 0.45, 0.32, 0.09], [0.07, 0.02, 0.2, 1.6, 0, -0.25, 0.3, 0.09], [-0.07, 0.02, 0.2, 1.6, 0, 0.25, 0.3, 0.09],
+  [0, -0.07, 0.19, 2.0, 0, 0, 0.26, 0.08], [0.15, 0.13, 0.02, 0.5, 0, -1.0, 0.22, 0.075], [-0.15, 0.13, 0.02, 0.5, 0, 1.0, 0.22, 0.075], [0.03, 0.24, -0.02, -0.35, 0, -0.2, 0.2, 0.035]]
+  .forEach(([x, y, z, rx, ry, rz, len, rad]) => spike(x, y, z, rx, ry, rz, len, rad));
+for (const sd of [-1, 1]) {
+  const ear = add(new THREE.ConeGeometry(0.036, 0.19, 6), M.skin, head); ear.position.set(sd * 0.205, 0.0, 0.02); ear.rotation.set(0.55, 0, -sd * 1.2);
+  spike(sd * 0.178, -0.045, -0.06, Math.PI + 0.2, 0, -sd * 0.1, 0.2, 0.045, 0.6);
+}
 const collar = add(new THREE.SphereGeometry(0.17, 12, 8).scale(1.1, 0.55, 1.25), M.cape);            // hood, worn down
 const clasp = ball(0.04, M.gold);
 const quiver = add(new THREE.CylinderGeometry(0.06, 0.045, 0.5, 10), M.leather);
@@ -128,7 +148,7 @@ const SC = 12, COLS = 5, scarfPts = Array.from({ length: SC }, () => V());
 const capePos = new Float32Array(SC * COLS * 3), capeGeo = new THREE.BufferGeometry();
 capeGeo.setAttribute('position', new THREE.BufferAttribute(capePos, 3).setUsage(THREE.DynamicDrawUsage));
 { const idx = []; for (let i = 0; i < SC - 1; i++) for (let j = 0; j < COLS - 1; j++) { const k = i * COLS + j; idx.push(k, k + COLS, k + 1, k + 1, k + COLS, k + COLS + 1); } capeGeo.setIndex(idx); }
-const cape = new THREE.Mesh(capeGeo, rim(new THREE.MeshLambertMaterial({ color: '#e0a030', emissive: '#e0a030', emissiveIntensity: 0.4, side: THREE.DoubleSide }), 0.5, 2.2));
+const cape = new THREE.Mesh(capeGeo, cel({ color: '#e0a030', emissive: '#e0a030', emissiveIntensity: 0.4, side: THREE.DoubleSide }, 0.5, 2.2));
 cape.frustumCulled = false; cape.castShadow = true; scene.add(cape);
 const hem = new Ribbon(COLS, 0.06, new THREE.Color('#ffd070').multiplyScalar(2.2)), hemPts = Array.from({ length: COLS }, () => V());
 
@@ -272,7 +292,7 @@ function pose(dt, tuck, sAlong) {
   setLimb(torso, a.set(hip.x - 0.02, hip.y - 0.2, 0), b.set(chest.x, chest.y + 0.17, chest.z)); torso.scale.z = 1.2;
   shoulders.position.set(chest.x, chest.y + 0.05, chest.z - 0.25); shoulderB.position.set(chest.x, chest.y + 0.05, chest.z + 0.25);
   collar.position.set(chest.x - 0.14, chest.y + 0.13, chest.z); clasp.position.set(chest.x + 0.13, chest.y + 0.13, chest.z - 0.06);
-  head.position.set(chest.x + 0.03, chest.y + 0.36, chest.z - 0.03); head.rotation.set(0.05, 0.35 - e * 0.2 + aim.blend * 0.2, 0);
+  head.position.set(chest.x + 0.03, chest.y + 0.385, chest.z - 0.03); head.rotation.set(0.05, 0.35 - e * 0.2 + aim.blend * 0.2, 0);
   quiver.position.set(chest.x - 0.25, chest.y - 0.12, 0.13); quiver.rotation.set(0.45, 0, 0.3);
 
   // Bow arm: at rest the bow hangs forward and low; on the draw it swings up along the aim line.

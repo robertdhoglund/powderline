@@ -126,3 +126,14 @@ body:not(.touch) #musicBtn { left: 50%; transform: translateX(-50%); }
 #clock.late { color: var(--hot); }
 #tagline small { display: inline-block; margin-top: 10px; font-size: 11px; letter-spacing: .26em; font-weight: 700; color: var(--gold); }
 .lv em { display: block; font-style: normal; font-size: 11px; opacity: .8; margin: -4px 0 10px; letter-spacing: .04em; line-height: 1.4; }
+
+/* Reticle v2: reads on white snow and on dark trees. Pink with a dark edge; gold on a lock; white when focused. */
+#reticle i { background: #ff3d7f; box-shadow: 0 0 0 2px #140a36, 0 0 10px rgba(20, 10, 54, .7); border-radius: 2px; }
+#reticle .t, #reticle .b { width: 4px; height: 13px; left: -2px; }
+#reticle .l, #reticle .r { height: 4px; width: 13px; top: -2px; }
+#reticle .t { top: calc(-13px - var(--gap)); } #reticle .l { left: calc(-13px - var(--gap)); }
+#reticle .dot { width: 6px; height: 6px; left: -3px; top: -3px; background: #fff; }
+#reticle.full i { background: #fff; box-shadow: 0 0 0 2px #140a36, 0 0 14px #fff; }
+#reticle.lock i { background: var(--gold); box-shadow: 0 0 0 2px #140a36, 0 0 14px var(--gold); }
+#reticle.lock .dot { width: 10px; height: 10px; left: -5px; top: -5px; }
+#focusArc { stroke: #7af3ff; stroke-width: 3; filter: drop-shadow(0 0 0 #140a36) drop-shadow(0 0 3px #140a36); }

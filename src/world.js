@@ -100,6 +100,10 @@ export function rim(material, strength = 0.6, power = 3) {
   return material;
 }
 
+// Cel shading: light falls in a few flat steps instead of a smooth gradient, like painted animation.
+export const RAMP = (() => { const t = new THREE.DataTexture(new Uint8Array([118, 118, 176, 236, 255]), 5, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+export const cel = (params, rimK = 0.6, power = 2.4) => rim(new THREE.MeshToonMaterial({ gradientMap: RAMP, ...params }), rimK, power);
+
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
   uniforms: { uTop: { value: pal.top }, uMid: { value: pal.mid }, uHor: { value: pal.hor }, uSun: { value: pal.sun }, uHalo: { value: pal.halo },
@@ -249,36 +253,34 @@ const shadowTex = (() => {
 
 // ---- trees: layered, snow-laden firs --------------------------------------------------------
 function firGeometry(tiers, girth, seed) {
-  const r = rng(seed), pos = [], col = [];
-  const dark = new THREE.Color(LEVEL.tree ? LEVEL.tree[0] : '#141240'), mid = new THREE.Color('#2b2a72'), snow = new THREE.Color('#d6d0ff'), frost = new THREE.Color(LEVEL.tree ? LEVEL.tree[1] : '#2f2c80'), bark = new THREE.Color('#0d0b26');
-  const tri = (a, b, c, ca, cb, cc) => { pos.push(...a, ...b, ...c); col.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b, cc.r, cc.g, cc.b); };
-  for (let i = 0; i < 6; i++) { // trunk
-    const a0 = i / 6 * 6.283, a1 = (i + 1) / 6 * 6.283, p = (a, y, rad) => [Math.cos(a) * rad, y, Math.sin(a) * rad];
-    tri(p(a0, 0, 0.36), p(a1, 0, 0.36), p(a0, 3.4, 0.2), bark, bark, bark); tri(p(a1, 0, 0.36), p(a1, 3.4, 0.2), p(a0, 3.4, 0.2), bark, bark, bark);
-  }
-  let y = 2.2;
+  const r = rng(seed), SEG = 10, pos = [], col = [], idx = [];
+  const dark = new THREE.Color(LEVEL.tree ? LEVEL.tree[0] : '#17154a'), frost = new THREE.Color(LEVEL.tree ? LEVEL.tree[1] : '#3a3890'), mid = dark.clone().lerp(frost, 0.55);
+  const snow = new THREE.Color('#f1eeff'), shade = new THREE.Color('#a9a6ee'), bark = new THREE.Color('#120f2c');
+  // A ring of vertices. wob makes every other one shorter, so boughs scallop; droop lets the long ones hang.
+  const ring = (y, rad, c, wob = 0, droop = 0, twist = 0) => {
+    const start = pos.length / 3;
+    for (let i = 0; i <= SEG; i++) { const a = twist + i / SEG * 6.2832, k = (i % SEG) % 2 ? 1 - wob : 1; pos.push(Math.cos(a) * rad * k, y - ((i % SEG) % 2 ? 0 : droop), Math.sin(a) * rad * k); col.push(c.r, c.g, c.b); }
+    return start;
+  };
+  const band = (a, b) => { for (let i = 0; i < SEG; i++) idx.push(a + i, b + i, a + i + 1, a + i + 1, b + i, b + i + 1); };
+  band(ring(0, 0.36, bark), ring(3.2, 0.2, bark));
+  let y = 2.0, last = 0;
   for (let t = 0; t < tiers; t++) {
-    const k = t / (tiers - 1), rad = lerp(2.9, 0.75, Math.pow(k, 0.85)) * girth, h = lerp(3.6, 2.6, k), sides = 9, twist = r() * 6.283, apex = [0, y + h, 0];
-    const ring = [];
-    for (let i = 0; i < sides; i++) {
-      const a = twist + i / sides * 6.283, out = (i % 2 ? 0.66 : 1) * (0.88 + r() * 0.24), rr = rad * out;
-      ring.push({ p: [Math.cos(a) * rr, y - (i % 2 ? 0 : 0.75 * (1 - k * 0.6)) - r() * 0.25, Math.sin(a) * rr], m: [Math.cos(a) * rr * 0.5, y + h * 0.42, Math.sin(a) * rr * 0.5] });
-    }
-    for (let i = 0; i < sides; i++) {
-      const A = ring[i], B = ring[(i + 1) % sides];
-      tri(apex, B.m, A.m, snow, snow, snow);                                   // snow cap
-      tri(A.m, B.m, B.p, snow, snow, frost); tri(A.m, B.p, A.p, snow, frost, dark); // snow-laden boughs, bluer toward the tips
-      tri([0, y + 0.9, 0], A.p, B.p, dark, dark, dark);                         // dark underside
-    }
-    y += h * 0.5;
+    const k = t / (tiers - 1), rad = lerp(3.0, 0.85, Math.pow(k, 0.85)) * girth, h = lerp(3.5, 2.5, k), tw = r() * 6.28;
+    const under = ring(y + 0.55, rad * 0.28, dark, 0, 0, tw), tips = ring(y, rad, mid, 0.34, 0.75 * (1 - k * 0.5), tw);
+    const shelf = ring(y + h * 0.3, rad * 0.7, snow, 0.2, 0.2, tw), inner = ring(y + h * 0.82, rad * 0.24, frost, 0, 0, tw);
+    band(under, tips); band(tips, shelf); band(shelf, inner); last = inner; y += h * 0.52;
   }
+  band(last, ring(y + 1.5, 0.02, snow));
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const n = g.attributes.normal, p = g.attributes.position;   // make every normal face away from the trunk
+  for (let i = 0; i < n.count; i++) if (n.getX(i) * p.getX(i) + n.getZ(i) * p.getZ(i) < 0) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
   return g;
 }
 {
-  const mat = rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 0.3, 2.5);
-  const kinds = [firGeometry(5, 1.0, 11), firGeometry(6, 0.72, 23), firGeometry(4, 1.15, 37)];
+  const mat = cel({ vertexColors: true, side: THREE.DoubleSide }, 0.35, 2.5);
+  const kinds = [firGeometry(5, 1.0, 11), firGeometry(7, 0.7, 23), firGeometry(4, 1.2, 37)];
   const groups = new Map(), KINDS = LEVEL.kinds || [0, 1, 2];
   trees.forEach((t, i) => { const key = chunkOf(-t.z) * 3 + KINDS[i % KINDS.length]; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); });
   const o = new THREE.Object3D(), c = new THREE.Color();
