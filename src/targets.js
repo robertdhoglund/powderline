@@ -61,7 +61,6 @@ function makeEnemy(kind, base) {
   const type = kind === 'pacer' ? 'raider' : base.tower ? 'tower' : 'balloon';
   const group = new THREE.Mesh(type === 'raider' ? raiderGeo : type === 'tower' ? towerGeo : balloonGeo, gobMat);
   group.castShadow = true; group.frustumCulled = false; scene.add(group);
-  { const o = new THREE.Mesh(group.geometry, ink); o.frustumCulled = false; group.add(o); }
   enemies.push({ kind, type, base, group, pos: group.position, pos2: type === 'balloon' ? new THREE.Vector3() : null, vel: new THREE.Vector3(), alive: true, radius: 1.3, phase: enemies.length * 1.7, t: 0, cool: 0, active: kind === 'sentry', chain: -1 });
 }
 sentries.forEach((s) => makeEnemy('sentry', s));

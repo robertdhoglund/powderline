@@ -30,12 +30,12 @@ export function merge(parts) {
   return out;
 }
 // Lit, rim-lit, vertex-coloured material. Any vertex colour above 1.0 is treated as its own light.
-export function toon(rimK = 0.7, lift = 0.22) {
-  const m = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: RAMP });
+export function toon(rimK = 0.7, lift = 0.22, color = null) {
+  const m = new THREE.MeshToonMaterial(color ? { color, gradientMap: RAMP } : { vertexColors: true, gradientMap: RAMP });
   rim(m, rimK, 2.2);
-  const base = m.onBeforeCompile;
-  m.onBeforeCompile = (sh) => { base(sh); sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `outgoingLight += max(vColor.rgb - 1.0, 0.0) * 1.6 + min(vColor.rgb, 1.0) * ${lift.toFixed(2)};\n#include <opaque_fragment>`); };
-  m.customProgramCacheKey = () => `toon${rimK}${lift}`;
+  const base = m.onBeforeCompile, src = color ? 'diffuseColor.rgb' : 'vColor.rgb';
+  m.onBeforeCompile = (sh) => { base(sh); sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `outgoingLight += max(${src} - 1.0, 0.0) * 1.6 + min(${src}, 1.0) * ${lift.toFixed(2)};\n#include <opaque_fragment>`); };
+  m.customProgramCacheKey = () => `toon${rimK}${lift}${color ? 'c' : 'v'}`;
   return m;
 }
 
@@ -49,4 +49,33 @@ export const ink = new THREE.ShaderMaterial({
 export function outline(root) {
   const list = []; root.traverse((o) => { if (o.isMesh && (o.material.isMeshLambertMaterial || o.material.isMeshToonMaterial)) list.push(o); });
   for (const o of list) { const m = new THREE.Mesh(o.geometry, ink); m.frustumCulled = false; o.add(m); }
+}
+
+// Loft: a body volume from stacked elliptical rings [y, radiusX, radiusZ, offsetX, offsetZ], capped at both ends.
+// colorAt(t, angle) paints it: t runs 0..1 up the rings, angle 0 is +X. Used for limbs, torso, anything organic.
+export function loft(rings, colorAt, seg = 16) {
+  // Each band between two rings gets its own vertices and one flat colour, so colour blocks have crisp edges.
+  // Normals are computed from the shape itself, so the surface still shades smoothly across those edges.
+  const pos = [], col = [], nor = [], idx = [], c = new THREE.Color(), n = rings.length, row = seg + 1, v = new THREE.Vector3();
+  const ringVerts = (i, tMid) => {
+    const [y, rx, rz, ox = 0, oz = 0] = rings[i], lo = rings[Math.max(0, i - 1)], hi = rings[Math.min(n - 1, i + 1)], dy = (hi[0] - lo[0]) || 1, slope = ((hi[1] + hi[2]) - (lo[1] + lo[2])) / 2 / dy;
+    for (let j = 0; j <= seg; j++) {
+      const a = j / seg * 6.2832; pos.push(ox + Math.cos(a) * rx, y, oz + Math.sin(a) * rz);
+      v.set(Math.cos(a) * rz, -slope * Math.max(rx, rz), Math.sin(a) * rx).normalize(); nor.push(v.x, v.y, v.z);
+      c.set(colorAt(tMid, (j + 0.5) / seg * 6.2832)); col.push(c.r, c.g, c.b);
+    }
+  };
+  for (let i = 0; i < n - 1; i++) {
+    const tMid = (i + 0.5) / (n - 1), base = pos.length / 3; ringVerts(i, tMid); ringVerts(i + 1, tMid);
+    for (let j = 0; j < seg; j++) { const a = base + j, b = a + row; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+  }
+  for (const [i, flip] of [[0, true], [n - 1, false]]) {
+    const [y, rx, rz, ox = 0, oz = 0] = rings[i], centre = pos.length / 3; c.set(colorAt(i ? 1 : 0, 0));
+    pos.push(ox, y, oz); nor.push(0, flip ? -1 : 1, 0); col.push(c.r, c.g, c.b);
+    for (let j = 0; j <= seg; j++) { const a = j / seg * 6.2832; pos.push(ox + Math.cos(a) * rx, y, oz + Math.sin(a) * rz); nor.push(0, flip ? -1 : 1, 0); col.push(c.r, c.g, c.b); }
+    for (let j = 0; j < seg; j++) { const a = centre + 1 + j; if (flip) idx.push(centre, a, a + 1); else idx.push(centre, a + 1, a); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
+  return g;
 }

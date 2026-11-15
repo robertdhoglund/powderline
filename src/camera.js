@@ -20,7 +20,7 @@ export function updateCamera(rdt) {
   fwd.set(Math.sin(camH), -camS, -Math.cos(camH)).normalize();
   right.set(Math.cos(camH), 0, Math.sin(camH));
   lagX = damp(lagX, -P.edge * 1.5 * (1 - aim), 3, rdt);
-  const dist = (T.camDist + sp * 2.2) * (1 - aim * 0.38), up = T.camHeight + camS * 1.6 - aim * 0.5;
+  const dist = (T.camDist + sp * 1.1) * (1 - aim * 0.38), up = T.camHeight + camS * 1.6 - aim * 0.5;
   ideal.copy(P.pos).addScaledVector(fwd, -dist).addScaledVector(right, lagX + aim * 1.5); ideal.y += up + P.alt * 0.12;
   const follow = snap ? 1 : 1 - Math.exp(-(9 + aim * 6) * rdt);
   camera.position.lerp(ideal, follow);

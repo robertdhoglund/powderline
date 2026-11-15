@@ -8,6 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { clamp, lerp, rng } from './util.js';
 import { height, cx, widthAt, slopeAt, trees, D_MIN, D_MAX, FINISH } from './course.js';
 import { LEVEL } from './levels.js';
+import { part, merge, cyl } from './build.js';
 
 export const TOUCH = matchMedia('(pointer: coarse)').matches;
 export const scene = new THREE.Scene();
@@ -19,15 +20,18 @@ document.getElementById('game').appendChild(renderer.domElement);
 
 let pixelRatio = Math.min(TOUCH ? 1.25 : 1.5, window.devicePixelRatio || 1);
 const target = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: TOUCH ? 2 : 4 });
+target.depthTexture = new THREE.DepthTexture(innerWidth, innerHeight);   // read back by the ink pass
 export const composer = new EffectComposer(renderer, target);
 composer.addPass(new RenderPass(scene, camera));
-export const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.65, 1.0);
+export const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.26, 0.6, 1.0);
 composer.addPass(bloom);
-// Lens: speed blur toward the edges, a little colour fringing, vignette, grain.
+// Lens and ink. Ink draws a dark line wherever depth breaks: every silhouette and overlap in the scene gets a drawn edge.
+// Then: speed blur toward the edges, a little colour fringing, vignette, grain.
 export const lens = new ShaderPass({
-  uniforms: { tDiffuse: { value: null }, uSpeed: { value: 0 }, uTime: { value: 0 }, uTint: { value: new THREE.Color() } },
+  uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, uPx: { value: new THREE.Vector2(1 / innerWidth, 1 / innerHeight) }, uInk: { value: new THREE.Color(0.02, 0.012, 0.06) }, uSpeed: { value: 0 }, uTime: { value: 0 }, uTint: { value: new THREE.Color() } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uSpeed, uTime; uniform vec3 uTint; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse, tDepth; uniform vec2 uPx; uniform float uSpeed, uTime; uniform vec3 uTint, uInk; varying vec2 vUv;
+    float lin(vec2 uv){ float z = texture2D(tDepth, uv).x; return 1800.0 / (6000.0 - z * 5999.7); }   // depth to metres (near 0.3, far 6000)
     float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main(){
       vec2 c = vUv - vec2(0.5, 0.46); float r2 = dot(c, c);
@@ -36,19 +40,25 @@ export const lens = new ShaderPass({
       col /= 5.0;
       vec2 ca = c * r2 * 0.005;
       col.r = mix(col.r, texture2D(tDiffuse, vUv - ca).r, 0.6); col.b = mix(col.b, texture2D(tDiffuse, vUv + ca).b, 0.6);
+      vec2 o = uPx * 1.25; float d0 = lin(vUv);
+      float lap = abs(lin(vUv - vec2(o.x, 0.0)) + lin(vUv + vec2(o.x, 0.0)) - 2.0 * d0) + abs(lin(vUv - vec2(0.0, o.y)) + lin(vUv + vec2(0.0, o.y)) - 2.0 * d0);
+      float edge = smoothstep(0.02, 0.07, lap / d0) * (1.0 - smoothstep(160.0, 520.0, d0));
+      col = mix(col, uInk, edge * 0.9);
       col *= mix(vec3(1.0), uTint, smoothstep(0.08, 0.62, r2));
       col *= 1.0 + (hash(vUv * 900.0 + uTime) - 0.5) * 0.045;
       gl_FragColor = vec4(col, 1.0);
     }`,
 });
 composer.addPass(lens);
+lens.uniforms.tDepth.value = composer.renderTarget2.depthTexture;
 composer.addPass(new OutputPass());
+resize();
 export function resize() {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setPixelRatio(pixelRatio); renderer.setSize(innerWidth, innerHeight);
   composer.setPixelRatio(pixelRatio); composer.setSize(innerWidth, innerHeight);
+  lens.uniforms.uPx.value.set(1 / (innerWidth * pixelRatio), 1 / (innerHeight * pixelRatio)); lens.uniforms.tDepth.value = composer.renderTarget2.depthTexture;
 }
-resize();
 window.addEventListener('resize', resize);
 
 // Drop resolution automatically on slow machines so the ride stays smooth.
@@ -94,14 +104,14 @@ export function rim(material, strength = 0.6, power = 3) {
   material.onBeforeCompile = (sh) => {
     sh.uniforms.uRimCol = { value: pal.light };
     sh.fragmentShader = 'uniform vec3 uRimCol;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
-      `float rimF = pow(1.0 - saturate(dot(normalize(vViewPosition), normal)), ${power.toFixed(1)}); outgoingLight += uRimCol * rimF * ${strength.toFixed(2)};\n#include <opaque_fragment>`);
+      `float rimF = pow(1.0 - saturate(dot(normalize(vViewPosition), normal)), ${power.toFixed(1)}); outgoingLight += uRimCol * rimF * ${(strength * 0.35).toFixed(3)};\n#include <opaque_fragment>`);
   };
   material.customProgramCacheKey = () => `rim${strength}${power}`;
   return material;
 }
 
 // Cel shading: light falls in a few flat steps instead of a smooth gradient, like painted animation.
-export const RAMP = (() => { const t = new THREE.DataTexture(new Uint8Array([118, 118, 176, 236, 255]), 5, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+export const RAMP = (() => { const t = new THREE.DataTexture(new Uint8Array([150, 150, 255, 255]), 4, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
 export const cel = (params, rimK = 0.6, power = 2.4) => rim(new THREE.MeshToonMaterial({ gradientMap: RAMP, ...params }), rimK, power);
 
 const skyMat = new THREE.ShaderMaterial({
@@ -231,7 +241,7 @@ const shadowTex = (() => {
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         vec2 rp = vWp.xz; float near = smoothstep(150.0, 12.0, length(vViewPosition));
         float r1 = sin(rp.x * 1.9 + rp.y * 0.55 + sin(rp.y * 0.33) * 2.2), r2 = sin(rp.x * 0.6 - rp.y * 2.6 + sin(rp.x * 0.45) * 1.7), r3 = sin(rp.x * 6.3 + rp.y * 4.1);
-        normal = normalize(normal + mat3(viewMatrix) * vec3(r1 * 0.07 + r3 * 0.025, 0.0, r2 * 0.07 - r3 * 0.02) * near);`)
+        normal = normalize(normal + mat3(viewMatrix) * vec3(r1 * 0.035 + r3 * 0.012, 0.0, r2 * 0.035 - r3 * 0.01) * near);`)
       .replace('#include <opaque_fragment>', `
         float shd = texture2D(uShadow, vec2(vU / ${U_SPAN.toFixed(1)} + 0.5, (-vWp.z - (${D_MIN.toFixed(1)})) / ${D_SPAN.toFixed(1)})).r * step(abs(vU), ${(U_SPAN / 2).toFixed(1)});
         outgoingLight = mix(outgoingLight, outgoingLight * uShadeCol * 1.15, shd * 0.8);
@@ -242,7 +252,7 @@ const shadowTex = (() => {
         vec2 off = fract(gp) - 0.5 - (vec2(sh1(cell + 5.3), sh1(cell + 9.1)) - 0.5) * 0.6;
         vec3 gn = normalize(normal + (vec3(sh1(cell + 3.1), sh1(cell + 7.7), sh1(cell + 1.3)) - 0.5) * 1.4);
         float glint = step(0.86, hs) * smoothstep(0.16, 0.02, length(off)) * pow(saturate(dot(gn, normalize(vv + uSunView))), 40.0);
-        outgoingLight += uRimCol * glint * 14.0 * lit * near;
+        outgoingLight += uRimCol * glint * 7.0 * lit * near;
         #include <opaque_fragment>`);
   };
   const mesh = new THREE.Mesh(geo, mat);
@@ -252,35 +262,26 @@ const shadowTex = (() => {
 }
 
 // ---- trees: layered, snow-laden firs --------------------------------------------------------
-function firGeometry(tiers, girth, seed) {
-  const r = rng(seed), SEG = 10, pos = [], col = [], idx = [];
-  const dark = new THREE.Color(LEVEL.tree ? LEVEL.tree[0] : '#17154a'), frost = new THREE.Color(LEVEL.tree ? LEVEL.tree[1] : '#3a3890'), mid = dark.clone().lerp(frost, 0.55);
-  const snow = new THREE.Color('#f1eeff'), shade = new THREE.Color('#a9a6ee'), bark = new THREE.Color('#120f2c');
-  // A ring of vertices. wob makes every other one shorter, so boughs scallop; droop lets the long ones hang.
-  const ring = (y, rad, c, wob = 0, droop = 0, twist = 0) => {
-    const start = pos.length / 3;
-    for (let i = 0; i <= SEG; i++) { const a = twist + i / SEG * 6.2832, k = (i % SEG) % 2 ? 1 - wob : 1; pos.push(Math.cos(a) * rad * k, y - ((i % SEG) % 2 ? 0 : droop), Math.sin(a) * rad * k); col.push(c.r, c.g, c.b); }
-    return start;
-  };
-  const band = (a, b) => { for (let i = 0; i < SEG; i++) idx.push(a + i, b + i, a + i + 1, a + i + 1, b + i, b + i + 1); };
-  band(ring(0, 0.36, bark), ring(3.2, 0.2, bark));
-  let y = 2.0, last = 0;
+// Graphic firs: clean stacked cones in one flat colour, each tier wearing a crisp white cap. The ink pass draws their edges.
+function firGeometry(tiers, girth, height0) {
+  const body = LEVEL.tree ? LEVEL.tree[0] : '#1c1a58', body2 = LEVEL.tree ? LEVEL.tree[1] : '#2a2a7a', parts = [part(cyl(0.2, 0.3, 2.6, 7), '#110e2a', [0, 1.2, 0])];
+  let y = 1.8;
   for (let t = 0; t < tiers; t++) {
-    const k = t / (tiers - 1), rad = lerp(3.0, 0.85, Math.pow(k, 0.85)) * girth, h = lerp(3.5, 2.5, k), tw = r() * 6.28;
-    const under = ring(y + 0.55, rad * 0.28, dark, 0, 0, tw), tips = ring(y, rad, mid, 0.34, 0.75 * (1 - k * 0.5), tw);
-    const shelf = ring(y + h * 0.3, rad * 0.7, snow, 0.2, 0.2, tw), inner = ring(y + h * 0.82, rad * 0.24, frost, 0, 0, tw);
-    band(under, tips); band(tips, shelf); band(shelf, inner); last = inner; y += h * 0.52;
+    const k = t / Math.max(1, tiers - 1), rad = lerp(2.7, 1.1, k) * girth, h = lerp(4.2, 3.0, k) * height0;
+    parts.push(part(new THREE.ConeGeometry(rad, h, 11, 1, false), t % 2 ? body2 : body, [0, y + h / 2, 0]));
+    parts.push(part(new THREE.ConeGeometry(rad * 0.66, h * 0.6, 11, 1, true), '#f6f3ff', [0, y + h * 0.71, 0], [0, 0, 0], [1.06, 1, 1.06]));
+    y += h * 0.5;
   }
-  band(last, ring(y + 1.5, 0.02, snow));
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
-  const n = g.attributes.normal, p = g.attributes.position;   // make every normal face away from the trunk
-  for (let i = 0; i < n.count; i++) if (n.getX(i) * p.getX(i) + n.getZ(i) * p.getZ(i) < 0) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
-  return g;
+  return merge(parts);
 }
 {
-  const mat = cel({ vertexColors: true, side: THREE.DoubleSide }, 0.35, 2.5);
-  const kinds = [firGeometry(5, 1.0, 11), firGeometry(7, 0.7, 23), firGeometry(4, 1.2, 37)];
+  const mat = cel({ vertexColors: true }, 0.3, 2.5);
+  // Trees dissolve when they come between the camera and the rider, so the view is never blocked.
+  const baseCompile = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh) => { baseCompile(sh); sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+    if (fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) > smoothstep(5.0, 12.0, length(vViewPosition))) discard;`); };
+  mat.customProgramCacheKey = () => 'treeFade';
+  const kinds = [firGeometry(3, 1.0, 1.0), firGeometry(4, 0.72, 1.15), firGeometry(2, 1.25, 1.05)];
   const groups = new Map(), KINDS = LEVEL.kinds || [0, 1, 2];
   trees.forEach((t, i) => { const key = chunkOf(-t.z) * 3 + KINDS[i % KINDS.length]; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); });
   const o = new THREE.Object3D(), c = new THREE.Color();

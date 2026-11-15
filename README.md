@@ -1,4 +1,4 @@
-# POWDERLINE (v0.8)
+# POWDERLINE (v0.9)
 
 A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 

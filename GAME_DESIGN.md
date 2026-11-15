@@ -86,6 +86,10 @@ Steering and aiming simultaneously may be too demanding. Keep the start easy. Th
 - **Progression.** Coins, upgrades and four mountains with their own scenery, light and layout.
 - **Fail-soft still holds.** Snowballs cost speed and flow, never the run.
 
+## Art direction since v0.9
+
+Flat colour blocks, hard two-tone light, ink lines on every edge, real proportions. The reference for the feel is Rollerdrome's comic-book look; palette, characters and scenery are our own. Earlier notes about low-poly facets and glow no longer describe the target.
+
 ## Deferred on purpose
 
 Longer and additional levels, music and richer sound, tricks, touch and gamepad controls.

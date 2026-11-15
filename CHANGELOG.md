@@ -1,5 +1,38 @@
 # Changes and handoffs
 
+## v0.9 | 2026-11-15 | Claude
+
+A new visual direction: flat colour, hard two-tone light, ink lines on everything, and a rider with real proportions. The reference is Rollerdrome's comic-book look, in our own palette and designs.
+
+**Changed**
+
+- **Ink lines across the whole picture.** A screen pass reads the depth of the scene and draws a dark line wherever it breaks, so every silhouette and overlap (rider, goblins, trees, rocks, cabins, gates, ridgelines) gets a drawn edge. The separate swollen-outline meshes are gone.
+- **Flat two-tone shading.** Light on cel-shaded surfaces is now two hard steps instead of four, the sun rim is cut to a third, bloom is lower, and the snow's ripples and sparkle are halved. Fewer gradients, more shape.
+- **Rider rebuilt from scratch.**
+  - Human proportions instead of a big-headed toy.
+  - Body parts are shaped volumes (hips, waist, chest, shoulders, tapered thighs, baggy cuffs), built with a new `loft` tool, instead of tubes and balls.
+  - A retro sport suit in crisp colour blocks: ochre jacket with navy side panels, hem, collar and shoulders, a cream chest band with a coral line, teal trousers with navy cuffs.
+  - Helmet with a coral stripe, wraparound goggles with an orange lens, a coral neck gaiter, navy gloves and boots with cream soles and coral bindings.
+  - Two flat coral scarf tails replace the cape. The drawn face and spiky hair are gone (the helmet covers them).
+  - The board is navy with coral and cream stripes.
+- **Trees are graphic.** Clean stacked cones in one flat colour per tier, each with a crisp white snow cap. The ink pass gives them their edges.
+- **Camera stays closer at speed** so the rider does not shrink.
+- **Trees dissolve near the camera**, so a tree between you and the rider no longer blocks the view.
+
+**Tested**
+
+- `npm run check` and `npm test` pass; all four levels finish under autopilot with no errors.
+- Rider close-ups and two gameplay frames were reviewed.
+- **Performance unverified on a phone.** The ink pass adds five depth reads per pixel; the hull outlines it replaces saved about a hundred draw calls.
+
+**Known issues**
+
+- Goblins, cabins and other props keep their old models; they pick up the ink lines and flat shading but were not redesigned.
+- Ink lines fade out beyond a few hundred metres and can shimmer on very thin shapes.
+- Snow clods get outlines too, which reads a little busy.
+
+---
+
 ## v0.8 | 2026-11-15 | Claude
 
 Shot stutter fixed, a reticle and gates you can see, and a large art pass toward a cel-shaded, anime-leaning look.

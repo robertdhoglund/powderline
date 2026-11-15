@@ -4,7 +4,7 @@ import { G } from './state.js';
 import { T } from './config.js';
 import { height, grad, cx, dcx, widthAt, trees } from './course.js';
 import { scene, rim, cel } from './world.js';
-import { outline } from './build.js';
+import { toon, loft } from './build.js';
 import { clamp, damp, lerp, rand, wrapPi } from './util.js';
 import * as snow from './snow.js';
 import { Ribbon, shake, arrowMesh, burst } from './fx.js';
@@ -22,35 +22,14 @@ export const P = {
 const solids = trees.filter((t) => t.solid);
 
 // ---- model ------------------------------------------------------------------------------
-export const rider = new THREE.Group(); rider.rotation.order = 'YXZ'; rider.scale.setScalar(1.5); scene.add(rider);
-const lam = (c, e = 0.3, k = 0.7) => cel({ color: c, emissive: c, emissiveIntensity: e }, k, 2.2);
+export const rider = new THREE.Group(); rider.rotation.order = 'YXZ'; rider.scale.setScalar(1.42); scene.add(rider);
 const glow = (c, k) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) });
-// The face is drawn, not modelled: big eyes, lashes, brows, blush, a small mouth, painted onto the head.
-function faceTexture() {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256; const g = cv.getContext('2d');
-  g.fillStyle = '#f7d2ae'; g.fillRect(0, 0, 512, 256);
-  const cx0 = 384, cy = 136;
-  for (const sd of [-1, 1]) {
-    const x = cx0 + sd * 31;
-    g.fillStyle = 'rgba(255,120,130,0.33)'; g.beginPath(); g.ellipse(x + sd * 8, cy + 26, 15, 8, 0, 0, 6.3); g.fill();                 // blush
-    g.fillStyle = '#ffffff'; g.beginPath(); g.ellipse(x, cy, 13, 18, 0, 0, 6.3); g.fill();                                               // eye white
-    const ir = g.createLinearGradient(0, cy - 16, 0, cy + 16); ir.addColorStop(0, '#0f5a4a'); ir.addColorStop(1, '#4fe0a8');
-    g.fillStyle = ir; g.beginPath(); g.ellipse(x, cy + 2, 10.5, 15, 0, 0, 6.3); g.fill();                                                // iris
-    g.fillStyle = '#10202a'; g.beginPath(); g.ellipse(x, cy + 2, 5, 8.5, 0, 0, 6.3); g.fill();                                          // pupil
-    g.fillStyle = '#ffffff'; g.beginPath(); g.arc(x - 4, cy - 6, 4, 0, 6.3); g.fill(); g.beginPath(); g.arc(x + 4, cy + 9, 2, 0, 6.3); g.fill();   // glints
-    g.strokeStyle = '#3a1c14'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.ellipse(x, cy, 14, 19, 0, Math.PI * 1.08, Math.PI * 1.92); g.stroke();   // lash
-    g.lineWidth = 2.5; g.beginPath(); g.moveTo(x + sd * 13, cy - 8); g.lineTo(x + sd * 19, cy - 13); g.stroke();
-    g.strokeStyle = '#a84a1e'; g.lineWidth = 5; g.beginPath(); g.moveTo(x - sd * 14, cy - 31); g.quadraticCurveTo(x, cy - 38, x + sd * 15, cy - 30); g.stroke();   // brow
-  }
-  g.strokeStyle = '#c98a66'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(cx0 - 2, cy + 20); g.lineTo(cx0 + 2, cy + 24); g.stroke();              // nose
-  g.strokeStyle = '#8a3a2a'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx0 - 9, cy + 40); g.quadraticCurveTo(cx0, cy + 47, cx0 + 9, cy + 40); g.stroke();   // mouth
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-const faceMap = faceTexture();
-// The hero: a young ranger. Emerald tunic, cream sleeves, navy leggings, pale chunky boots, copper hair, an ochre cape.
-const M = { tunic: lam('#1fa36c', 0.34), cream: lam('#f6ecd8', 0.34), legs: lam('#2a3484', 0.3), boot: lam('#f2e9d6', 0.36), leather: lam('#8a4a2c', 0.32), skin: lam('#f7d2ae', 0.42), hair: lam('#e0642a', 0.5),
-  face: cel({ map: faceMap, emissive: '#ffffff', emissiveMap: faceMap, emissiveIntensity: 0.42 }, 0.5, 2.2),
-  cape: lam('#e0a030', 0.4), dark: lam('#1b1640', 0.15), suit: lam('#2b2470', 0.2), hot: glow('#ffd070', 2.2), gold: glow('#ffc46b', 2.6), bowGlow: glow('#fff1dc', 0.95), trim: lam('#f4c040', 0.7, 0.4) };
+// The rider: real proportions, a retro sport suit in flat colour blocks, helmet and goggles. Shapes are lofted
+// volumes (shaped cross-sections), not tubes and balls. Colour lives in the vertices; one material draws the body.
+const C = { jacket: '#eaa23a', navy: '#1b2350', cream: '#f5ecd8', pants: '#1f6a76', coral: '#e4553c', leather: '#7a4428', dark: '#14122c' };
+const suit = toon(0.5, 0.34), flat = (c) => toon(0.5, 0.34, c);
+const M = { suit, navy: flat(C.navy), cream: flat(C.cream), pants: flat(C.pants), jacket: flat(C.jacket), coral: flat(C.coral), leather: flat(C.leather), dark: flat(C.dark),
+  hot: glow('#ffd070', 2.0), gold: glow('#ffc46b', 2.4), bowGlow: glow('#fff1dc', 0.95), lens: glow('#ff8a3a', 1.25) };
 const add = (geo, m, parent = rider) => { const o = new THREE.Mesh(geo, m); parent.add(o); return o; };
 const ball = (r, m, parent = rider, sx = 1, sy = 1, sz = 1) => { const o = add(new THREE.SphereGeometry(r, 16, 12), m, parent); o.scale.set(sx, sy, sz); return o; };
 const box = (w, h, d, m, parent = rider) => add(new THREE.BoxGeometry(w, h, d), m, parent);
@@ -84,48 +63,40 @@ function deckGeometry(scale, thick) {
   for (let i = 0; i < p.count; i++) { const k = Math.max(0, Math.abs(p.getZ(i)) - 0.5); p.setY(i, p.getY(i) + k * k * 1.5); }
   g.computeVertexNormals(); return g;
 }
-add(deckGeometry(1, 0.03), M.dark, board).position.y = 0.02;
-add(deckGeometry(0.42, 0.006), M.hot, board).position.y = 0.062;
-// Chunky snowboard boots with dark soles, strapped into bindings.
-const boot = () => { const g = new THREE.Group(); rider.add(g); ball(0.115, M.boot, g, 1.8, 1.15, 1.2); box(0.42, 0.05, 0.25, M.dark, g).position.y = -0.09; box(0.3, 0.04, 0.3, M.leather, g).position.set(0, 0.06, 0); return g; };
+add(deckGeometry(1, 0.03), M.navy, board).position.y = 0.02;
+add(deckGeometry(0.72, 0.006), M.coral, board).position.y = 0.058;
+add(deckGeometry(0.34, 0.006), M.cream, board).position.y = 0.064;
+// Boots: chunky, navy, cream sole, coral binding strap.
+const boot = () => { const g = new THREE.Group(); rider.add(g); ball(0.112, M.navy, g, 1.85, 1.2, 1.25); box(0.44, 0.055, 0.27, M.cream, g).position.y = -0.1; box(0.24, 0.05, 0.29, M.coral, g).position.set(0.02, 0.07, 0); return g; };
 const bootF = boot(), bootB = boot();
-for (const z of [-0.27, 0.27]) box(0.34, 0.04, 0.24, M.suit, board).position.set(0, 0.07, z);
-// Legs are one colour from hip to boot, so the knee reads as a bend, not a ball joint.
-const thighF = limb(0.098, M.legs, 0.082), shinF = limb(0.082, M.legs, 0.098), thighB = limb(0.098, M.legs, 0.082), shinB = limb(0.082, M.legs, 0.098);
-const kneeF = ball(0.082, M.legs), kneeB = ball(0.082, M.legs);
-const pelvis = ball(0.16, M.legs, rider, 1, 0.8, 1.15);
-// Tunic: flared skirt below a belt, drawn as a profile and spun.
-const tunicGeo = new THREE.LatheGeometry([[0.001, 0], [0.31, 0.0], [0.28, 0.1], [0.19, 0.36], [0.185, 0.43], [0.2, 0.7], [0.225, 0.86], [0.18, 0.96], [0.085, 1.03], [0.001, 1.04]].map(([x, y]) => new THREE.Vector2(x, y - 0.5)), 24);
-const torso = add(tunicGeo, M.tunic); torso.userData.r = 1;
-add(new THREE.TorusGeometry(0.192, 0.034, 8, 22).rotateX(Math.PI / 2), M.leather, torso).position.y = -0.1;
-add(new THREE.BoxGeometry(0.07, 0.085, 0.03), M.gold, torso).position.set(0.2, -0.1, 0);
-add(new THREE.TorusGeometry(0.3, 0.024, 6, 24).rotateX(Math.PI / 2), M.trim, torso).position.y = -0.485;
-add(new THREE.ConeGeometry(0.125, 0.16, 10).rotateX(Math.PI), M.cream, torso).position.set(0.04, 0.47, 0);
-{ const strap = add(new THREE.TorusGeometry(0.225, 0.022, 6, 22), M.leather, torso); strap.position.set(0, 0.2, 0); strap.rotation.set(0.5, 1.5708, 0); strap.scale.set(1, 1.35, 1); }
-box(0.09, 0.11, 0.1, M.leather, torso).position.set(0.12, -0.2, 0.19);
-const shoulders = ball(0.082, M.tunic), shoulderB = ball(0.082, M.tunic);
-const upperF = limb(0.066, M.cream, 0.056), foreF = limb(0.056, M.cream, 0.05), upperB = limb(0.066, M.cream, 0.056), foreB = limb(0.056, M.cream, 0.05);
-const elbowF = ball(0.056, M.cream), elbowB = ball(0.056, M.cream);
-const handF = ball(0.064, M.leather, rider, 1, 1.1, 1), handB = ball(0.064, M.leather, rider, 1, 1.1, 1);
-// Head: front is -Z. The face is a drawing wrapped round the head; the hair is big swept spikes.
+for (const z of [-0.27, 0.27]) box(0.36, 0.035, 0.26, M.dark, board).position.set(0, 0.068, z);
+// Limbs are shaped along their length. Each is modelled one unit long and stretched between two joints.
+const part1 = (rings, colorAt) => { const o = add(loft(rings, colorAt, 14), M.suit); o.userData.r = 1; return o; };
+const pantsAt = (t) => (t > 0.7 ? C.navy : C.pants), sleeveAt = (t) => (t < 0.3 ? C.navy : C.jacket), cuffAt = (t) => (t > 0.7 ? C.cream : C.jacket);
+const THIGH = [[-0.5, 0.12, 0.122], [-0.2, 0.118, 0.118], [0.2, 0.104, 0.104], [0.5, 0.094, 0.094]], SHIN = [[-0.5, 0.094, 0.094], [-0.15, 0.1, 0.098], [0.3, 0.103, 0.1], [0.5, 0.112, 0.108]];
+const thighF = part1(THIGH, () => C.pants), shinF = part1(SHIN, pantsAt), thighB = part1(THIGH, () => C.pants), shinB = part1(SHIN, pantsAt);
+const kneeF = ball(0.097, M.pants), kneeB = ball(0.097, M.pants);
+const pelvis = ball(0.15, M.pants, rider, 1, 0.78, 1.2);
+// Torso: hips, waist, chest, shoulders, neck. Ochre jacket, cream chest band with a coral line, navy side panels, hem and collar.
+const torso = part1([[-0.5, 0.152, 0.186], [-0.43, 0.146, 0.178], [-0.3, 0.134, 0.162], [-0.12, 0.124, 0.152], [0.06, 0.134, 0.174], [0.17, 0.138, 0.19], [0.21, 0.138, 0.196], [0.3, 0.134, 0.206], [0.37, 0.114, 0.186], [0.43, 0.075, 0.09], [0.5, 0.058, 0.062]],
+  (t, a) => (t < 0.1 || t > 0.8 ? C.navy : Math.abs(Math.sin(a)) > 0.9 && t < 0.7 ? C.navy : t > 0.4 && t < 0.5 ? C.cream : t >= 0.5 && t < 0.6 ? C.coral : C.jacket));
+const shoulders = ball(0.074, M.jacket), shoulderB = ball(0.074, M.jacket);
+const UPPER = [[-0.5, 0.072, 0.072], [-0.3, 0.07, 0.07], [0.1, 0.064, 0.064], [0.5, 0.056, 0.056]], FORE = [[-0.5, 0.056, 0.056], [0.1, 0.053, 0.053], [0.3, 0.052, 0.052], [0.5, 0.05, 0.05]];
+const upperF = part1(UPPER, sleeveAt), foreF = part1(FORE, cuffAt), upperB = part1(UPPER, sleeveAt), foreB = part1(FORE, cuffAt);
+const elbowF = ball(0.057, M.jacket), elbowB = ball(0.057, M.jacket);
+const handF = ball(0.058, M.navy, rider, 1, 1.25, 0.9), handB = ball(0.058, M.navy, rider, 1, 1.25, 0.9);
+// Head: front is -Z. Helmet with a stripe, wraparound goggles, a neck gaiter over the lower face.
 const head = new THREE.Group(); rider.add(head);
-add(new THREE.SphereGeometry(0.19, 28, 20), M.face, head).scale.set(1, 1.04, 0.98);
-add(new THREE.SphereGeometry(0.212, 20, 12, 0, 6.2832, 0, 1.62).rotateX(0.62), M.hair, head).position.set(0, 0.012, 0.03);
-const spike = (x, y, z, rx, ry, rz, len, rad = 0.07, flat = 1) => { const t = add(new THREE.ConeGeometry(rad, len, 8), M.hair, head); t.position.set(x, y, z); t.rotation.set(rx, ry, rz); t.scale.z = flat; return t; };
-// bangs: flat wedges falling over the forehead
-[[-0.12, 0.55], [-0.06, 0.2], [0, 0], [0.065, -0.22], [0.125, -0.5]].forEach(([x, rz], i) => spike(x, 0.105 - Math.abs(x) * 0.25, -0.168 + Math.abs(x) * 0.25, Math.PI - 0.32, 0, rz, 0.17 + (i % 2) * 0.04, 0.05, 0.45));
-// swept-back spikes, a crown, side locks, one cowlick
-[[0, 0.16, 0.14, 1.0, 0, 0, 0.36, 0.1], [0.11, 0.12, 0.15, 1.15, 0, -0.45, 0.32, 0.09], [-0.11, 0.12, 0.15, 1.15, 0, 0.45, 0.32, 0.09], [0.07, 0.02, 0.2, 1.6, 0, -0.25, 0.3, 0.09], [-0.07, 0.02, 0.2, 1.6, 0, 0.25, 0.3, 0.09],
-  [0, -0.07, 0.19, 2.0, 0, 0, 0.26, 0.08], [0.15, 0.13, 0.02, 0.5, 0, -1.0, 0.22, 0.075], [-0.15, 0.13, 0.02, 0.5, 0, 1.0, 0.22, 0.075], [0.03, 0.24, -0.02, -0.35, 0, -0.2, 0.2, 0.035]]
-  .forEach(([x, y, z, rx, ry, rz, len, rad]) => spike(x, y, z, rx, ry, rz, len, rad));
-for (const sd of [-1, 1]) {
-  const ear = add(new THREE.ConeGeometry(0.036, 0.19, 6), M.skin, head); ear.position.set(sd * 0.205, 0.0, 0.02); ear.rotation.set(0.55, 0, -sd * 1.2);
-  spike(sd * 0.178, -0.045, -0.06, Math.PI + 0.2, 0, -sd * 0.1, 0.2, 0.045, 0.6);
-}
-const collar = add(new THREE.SphereGeometry(0.17, 12, 8).scale(1.1, 0.55, 1.25), M.cape);            // hood, worn down
-const clasp = ball(0.04, M.gold);
-const quiver = add(new THREE.CylinderGeometry(0.06, 0.045, 0.5, 10), M.leather);
-for (let i = 0; i < 4; i++) { const f = box(0.02, 0.14, 0.05, M.hot, quiver); f.position.set(Math.cos(i * 1.6) * 0.025, 0.31, Math.sin(i * 1.6) * 0.025); f.rotation.y = i; }
+add(new THREE.SphereGeometry(0.132, 26, 18), M.cream, head).scale.set(1, 1.03, 1.14);
+add(new THREE.TorusGeometry(0.139, 0.016, 6, 26, Math.PI).rotateY(Math.PI / 2), M.coral, head).scale.set(1, 1.0, 1.12);
+add(new THREE.TorusGeometry(0.122, 0.05, 10, 22, Math.PI * 0.92).rotateX(-Math.PI / 2).rotateY(-0.07), M.dark, head).position.set(0, -0.008, -0.012);
+add(new THREE.TorusGeometry(0.128, 0.022, 6, 22, Math.PI * 0.7).rotateX(-Math.PI / 2).rotateY(-0.42), M.lens, head).position.set(0, 0.006, -0.03);
+add(new THREE.TorusGeometry(0.128, 0.02, 6, 26).rotateX(Math.PI / 2), M.dark, head).position.set(0, -0.005, 0.02);
+add(new THREE.SphereGeometry(0.118, 18, 12), M.coral, head).scale.set(1.02, 0.62, 1.08); head.children[head.children.length - 1].position.set(0, -0.085, -0.004);
+const collar = add(new THREE.SphereGeometry(0.13, 12, 8).scale(1.0, 0.5, 1.3), M.navy);            // jacket hood, worn down
+const clasp = ball(0.016, M.navy);
+const quiver = add(new THREE.CylinderGeometry(0.06, 0.045, 0.52, 10), M.leather);
+for (let i = 0; i < 4; i++) { const f = box(0.02, 0.14, 0.05, M.coral, quiver); f.position.set(Math.cos(i * 1.6) * 0.025, 0.32, Math.sin(i * 1.6) * 0.025); f.rotation.y = i; }
 
 // Bow: -Z points at the target. Limbs flex and the string pulls back with the draw.
 export const bow = new THREE.Group(); rider.add(bow);
@@ -142,15 +113,9 @@ const nocked = arrowMesh(); bow.add(nocked);
 
 
 rider.traverse((o) => { o.castShadow = true; });
-outline(rider);
-// Cape: one simulated spine, spread into a sheet across the wind.
-const SC = 12, COLS = 5, scarfPts = Array.from({ length: SC }, () => V());
-const capePos = new Float32Array(SC * COLS * 3), capeGeo = new THREE.BufferGeometry();
-capeGeo.setAttribute('position', new THREE.BufferAttribute(capePos, 3).setUsage(THREE.DynamicDrawUsage));
-{ const idx = []; for (let i = 0; i < SC - 1; i++) for (let j = 0; j < COLS - 1; j++) { const k = i * COLS + j; idx.push(k, k + COLS, k + 1, k + 1, k + COLS, k + COLS + 1); } capeGeo.setIndex(idx); }
-const cape = new THREE.Mesh(capeGeo, cel({ color: '#e0a030', emissive: '#e0a030', emissiveIntensity: 0.4, side: THREE.DoubleSide }, 0.5, 2.2));
-cape.frustumCulled = false; cape.castShadow = true; scene.add(cape);
-const hem = new Ribbon(COLS, 0.06, new THREE.Color('#ffd070').multiplyScalar(2.2)), hemPts = Array.from({ length: COLS }, () => V());
+// Scarf: two flat coral tails streaming from the neck.
+const SC = 10, scarfPts = Array.from({ length: SC }, () => V()), scarfDraw = Array.from({ length: SC }, () => V());
+const scarf = new Ribbon(SC, 0.17, new THREE.Color('#e4553c').multiplyScalar(1.15)), scarf2 = new Ribbon(SC, 0.12, new THREE.Color('#b8382c').multiplyScalar(1.1));
 
 // Landing craters: rings of pushed-up snow that stay where you came down.
 const craterGeo = new THREE.TorusGeometry(1, 0.1, 5, 22).rotateX(Math.PI / 2).scale(1, 0.5, 1);
@@ -163,7 +128,7 @@ export function resetPlayer() {
   Object.assign(P, { d: G.debugD ?? -24, h: 0, v: T.startSpeed, vy: 0, grounded: true, air: 0, jumpLock: 0, edge: 0, carveT: 0, brake: 0, onIce: false, bonkT: 0, crouch: 0.25, squash: 0, skid: 0 });
   P.z = -P.d; P.x = cx(P.d); P.y = P.groundY = height(P.x, P.z);
   P.pos.set(P.x, P.y, P.z);
-  scarfPts.forEach((p, i) => p.set(P.x, P.y + 1.6, P.z + i * 0.1));
+  scarfPts.forEach((p, i) => p.set(P.x, P.y + 1.6, P.z + i * 0.12));
   P.spin = 0; craters.forEach((m) => { m.visible = false; }); dumped.clear();
 }
 
@@ -289,10 +254,10 @@ function pose(dt, tuck, sAlong) {
   setLimb(thighF, a.set(hip.x, hip.y, -0.1), ik(a, b.set(0, 0.2, -0.27), 0.46, 0.46, _p2.set(1, 0.2, -0.5), knee)); setLimb(shinF, knee, b); kneeF.position.copy(knee);
   setLimb(thighB, a.set(hip.x, hip.y, 0.1), ik(a, b.set(0, 0.2, 0.27), 0.46, 0.46, _p2.set(1, 0.2, 0.5), knee)); setLimb(shinB, knee, b); kneeB.position.copy(knee);
   pelvis.position.copy(hip);
-  setLimb(torso, a.set(hip.x - 0.02, hip.y - 0.2, 0), b.set(chest.x, chest.y + 0.17, chest.z)); torso.scale.z = 1.2;
-  shoulders.position.set(chest.x, chest.y + 0.05, chest.z - 0.25); shoulderB.position.set(chest.x, chest.y + 0.05, chest.z + 0.25);
-  collar.position.set(chest.x - 0.14, chest.y + 0.13, chest.z); clasp.position.set(chest.x + 0.13, chest.y + 0.13, chest.z - 0.06);
-  head.position.set(chest.x + 0.03, chest.y + 0.385, chest.z - 0.03); head.rotation.set(0.05, 0.35 - e * 0.2 + aim.blend * 0.2, 0);
+  setLimb(torso, a.set(hip.x - 0.01, hip.y - 0.1, 0), b.set(chest.x + 0.01, chest.y + 0.2, chest.z));
+  shoulders.position.set(chest.x, chest.y + 0.06, chest.z - 0.215); shoulderB.position.set(chest.x, chest.y + 0.06, chest.z + 0.215);
+  collar.position.set(chest.x - 0.11, chest.y + 0.12, chest.z); clasp.position.set(chest.x + 0.12, chest.y + 0.1, chest.z - 0.05);
+  head.position.set(chest.x + 0.03, chest.y + 0.335, chest.z - 0.02); head.rotation.set(0.05, 0.35 - e * 0.2 + aim.blend * 0.2, 0);
   quiver.position.set(chest.x - 0.25, chest.y - 0.12, 0.13); quiver.rotation.set(0.45, 0, 0.3);
 
   // Bow arm: at rest the bow hangs forward and low; on the draw it swings up along the aim line.
@@ -311,35 +276,29 @@ function pose(dt, tuck, sAlong) {
   nockP.set(0, 0, pull * 1.35).applyQuaternion(bow.quaternion).add(bowP);
   handPosF.copy(bowP);
   handPosB.set(hip.x + 0.28 - e * 0.18, hip.y + 0.22 + Math.abs(e) * 0.18 + (P.grounded ? 0 : 0.2), 0.52).lerp(nockP, aim.blend);
-  a.set(chest.x, chest.y + 0.05, chest.z - 0.24); setLimb(upperF, a, ik(a, handPosF, 0.31, 0.31, _p2.set(0.2, -1, 0), elbow)); setLimb(foreF, elbow, handPosF); elbowF.position.copy(elbow);
-  a.set(chest.x, chest.y + 0.05, chest.z + 0.24); setLimb(upperB, a, ik(a, handPosB, 0.31, 0.31, _p2.set(-0.2, -0.6, 1), elbow)); setLimb(foreB, elbow, handPosB); elbowB.position.copy(elbow);
+  a.set(chest.x, chest.y + 0.06, chest.z - 0.215); setLimb(upperF, a, ik(a, handPosF, 0.31, 0.31, _p2.set(0.2, -1, 0), elbow)); setLimb(foreF, elbow, handPosF); elbowF.position.copy(elbow);
+  a.set(chest.x, chest.y + 0.06, chest.z + 0.215); setLimb(upperB, a, ik(a, handPosB, 0.31, 0.31, _p2.set(-0.2, -0.6, 1), elbow)); setLimb(foreB, elbow, handPosB); elbowB.position.copy(elbow);
   handF.position.copy(handPosF); handB.position.copy(handPosB);
 
   rider.updateMatrixWorld(true);
   P.bowPos.copy(bowP).applyMatrix4(rider.matrixWorld);
   P.chest.copy(chest).applyMatrix4(rider.matrixWorld);
 
-  // Cape: the spine trails from the back of the neck; the cloth spreads across the wind and ripples.
-  scarfPts[0].set(chest.x - 0.16, chest.y + 0.14, chest.z).applyMatrix4(rider.matrixWorld);
-  const seg = 0.105, sp3 = Math.hypot(P.vel.x, P.vel.z);
+  // Scarf: a chain dragged from the neck; flutter is layered on top so the tails snap like cloth.
+  scarfPts[0].set(chest.x - 0.1, chest.y + 0.24, chest.z + 0.03).applyMatrix4(rider.matrixWorld);
+  const seg = 0.12, sp3 = Math.hypot(P.vel.x, P.vel.z);
   for (let i = 1; i < SC; i++) {
     const p = scarfPts[i], q = scarfPts[i - 1];
-    p.x -= P.vel.x * 0.5 * dt; p.z -= P.vel.z * 0.5 * dt; p.y -= (6.5 - Math.min(3.6, sp3 * 0.14) + P.vel.y * 0.25) * dt;
+    p.x -= P.vel.x * 0.5 * dt; p.z -= P.vel.z * 0.5 * dt; p.y -= (5 - Math.min(4.4, sp3 * 0.2) + P.vel.y * 0.2) * dt;
     _d.subVectors(p, q); const len = _d.length() || 1; p.copy(q).addScaledVector(_d, seg / len);
   }
-  _p2.set(0, 0, 1).applyQuaternion(rider.quaternion);                       // shoulder line
-  for (let i = 0; i < SC; i++) {
-    const p = scarfPts[i], q = scarfPts[Math.min(SC - 1, i + 1)], o = scarfPts[Math.max(0, i - 1)], k = i / (SC - 1);
-    _d.subVectors(q, o).normalize(); const flat = Math.hypot(_d.x, _d.z);
-    a.crossVectors(_d, UP).multiplyScalar(flat).addScaledVector(_p2, 1 - flat).normalize();
-    const w = 0.19 + Math.sqrt(k) * 0.34, ph = G.t * (9 + sp3 * 0.25) - i * 0.85, rip = k * (0.06 + sp3 * 0.005);
-    for (let j = 0; j < COLS; j++) {
-      const n = (i * COLS + j) * 3, sd = (j - 2) / 2;
-      capePos[n] = p.x + a.x * w * sd; capePos[n + 1] = p.y + a.y * w * sd + Math.sin(ph + sd * 2.1) * rip + (1 - sd * sd) * (0.09 + k * 0.05) - k * 0.03; capePos[n + 2] = p.z + a.z * w * sd;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < SC; i++) {
+      const k = (i / SC) * (0.06 + sp3 * 0.004), ph = G.t * (pass ? 13 : 16) - i * (pass ? 1.1 : 0.85);
+      const o = scarfDraw[i]; if (pass) o.lerpVectors(scarfPts[0], scarfPts[i], 0.66); else o.copy(scarfPts[i]);
+      o.x += Math.cos(P.h) * Math.sin(ph) * k + (pass ? Math.cos(P.h) * 0.12 * i / SC : 0); o.z += Math.sin(P.h) * Math.sin(ph) * k; o.y += Math.cos(ph * 0.8) * k + (pass ? 0.1 * i / SC : 0);
     }
+    (pass ? scarf2 : scarf).update(scarfDraw, 0);
   }
-  capeGeo.attributes.position.needsUpdate = true; capeGeo.computeVertexNormals();
-  for (let j = 0; j < COLS; j++) hemPts[j].fromArray(capePos, ((SC - 1) * COLS + j) * 3);
-  hem.update(hemPts, 0, 1);
 }
 const _zero = V(), _z = V(0, 0, 1), _p2 = V();
