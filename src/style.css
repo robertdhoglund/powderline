@@ -121,3 +121,8 @@ body.touch #reticle { transform-origin: 0 0; }
 #musicBtn { position: absolute; top: 14px; left: calc(50% + 44px); pointer-events: auto; font: inherit; font-size: 13px; color: var(--ink); background: rgba(20, 10, 60, .35); border: 1px solid rgba(255, 255, 255, .35); border-radius: 20px; padding: 7px 13px; cursor: pointer; }
 #musicBtn.off { opacity: .4; text-decoration: line-through; }
 body:not(.touch) #musicBtn { left: 50%; transform: translateX(-50%); }
+
+#clock { margin-top: 10px; font-size: 13px; font-weight: 600; letter-spacing: .14em; font-variant-numeric: tabular-nums; opacity: .9; }
+#clock.late { color: var(--hot); }
+#tagline small { display: inline-block; margin-top: 10px; font-size: 11px; letter-spacing: .26em; font-weight: 700; color: var(--gold); }
+.lv em { display: block; font-style: normal; font-size: 11px; opacity: .8; margin: -4px 0 10px; letter-spacing: .04em; line-height: 1.4; }

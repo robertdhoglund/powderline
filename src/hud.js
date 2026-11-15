@@ -7,8 +7,8 @@ import { LEVEL } from './levels.js';
 const $ = (id) => document.getElementById(id);
 const el = { hud: $('hud'), score: $('score'), flow: $('flow'), flowFill: $('flowFill'), pop: $('pop'), prog: $('progFill'), speed: $('speed'),
   reticle: $('reticle'), focus: $('focusArc'), overlay: $('overlay'), flash: $('flash'), kicker: $('kicker'), title: $('title'), tag: $('tagline'),
-  start: $('start'), frost: $('frost'), shield: $('shield'), stats: $('stats'), help: $('help') };
-let shown = -1, popT = 0, tally = '';
+  start: $('start'), frost: $('frost'), clock: $('clock'), shield: $('shield'), stats: $('stats'), help: $('help') };
+let shown = -1, popT = 0, tally = '', lastSec = -1;
 
 // Every scoring event raises the flow multiplier. Flow fades if you stop making things happen.
 export function award(points, label) {
@@ -31,6 +31,7 @@ export function updateHud(P, rdt) {
   el.flowFill.style.transform = `scaleX(${clamp(G.flowT / 4.5, 0, 1)})`;
   el.prog.style.transform = `scaleX(${clamp(P.d / FINISH, 0, 1)})`;
   el.speed.textContent = Math.round(P.v * 3.6);
+  const sec = Math.floor(G.rtRun || 0); if (sec !== lastSec) { lastSec = sec; const par = LEVEL.par; el.clock.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')} / ${Math.floor(par / 60)}:${String(par % 60).padStart(2, '0')}`; el.clock.classList.toggle('late', sec > par); }
   if (popT > 0) { popT -= rdt; if (popT <= 0) el.pop.classList.remove('show'); }
   // snowball frost on the lens, shield count
   if (G.frost > 0) G.frost = Math.max(0, G.frost - rdt * 0.6); el.frost.style.opacity = G.frost;
@@ -54,8 +55,8 @@ export function showOverlay(kind, res) {
   if (kind === 'finished') {
     const s = G.stats, t = G.totals, mm = Math.floor(s.time / 60), ss = (s.time % 60).toFixed(1).padStart(4, '0');
     el.kicker.textContent = `${LEVEL.name} · RUN COMPLETE`; el.title.innerHTML = `RANK <span>${res.rank}</span>`;
-    el.tag.textContent = `${G.score.toLocaleString('en-US')} points  ·  +${res.coins.toLocaleString('en-US')} coins${res.opened ? `  ·  ${res.opened.name} unlocked` : ''}`;
-    el.stats.innerHTML = [['GOBLINS', `${s.kills}/${t.targets}`, res.gob], ['GATES', `${s.gates}/${t.gates}`, res.gate], ['TIME', `${mm}:${ss}`, res.speed]]
+    el.tag.innerHTML = `${G.score.toLocaleString('en-US')} points  ·  +${res.coins.toLocaleString('en-US')} coins${res.opened ? `  ·  ${res.opened.name} unlocked` : ''}<br><small>${res.need}</small>`;
+    el.stats.innerHTML = [['GOBLINS', `${s.kills}/${t.targets}`, res.gob], ['GATES', `${s.gates}/${t.gates}`, res.gate], [`TIME · PAR ${Math.floor(res.par / 60)}:${String(Math.round(res.par % 60)).padStart(2, '0')}`, `${mm}:${ss}`, res.speed]]
       .map(([k, v, f]) => `<div class="big"><b>${v}</b><span>${k}</span><em><u style="width:${Math.round(f * 100)}%"></u></em></div>`).join('')
       + [['PERFECT', s.perfect], ['BEST FLOW', `×${s.bestFlow}`], ['BIG AIR', `${s.maxAir.toFixed(1)}s`], ['SNOWBALLED', s.hits]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('');
     el.start.textContent = 'RIDE AGAIN';

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { scene, camera, renderer, pal } from './world.js';
 import { height } from './course.js';
 import { rand, clamp } from './util.js';
+import { LEVEL } from './levels.js';
 
 // ---- spray particles ----------------------------------------------------------------------
 const N = 6000;
@@ -53,7 +54,7 @@ let acc = 0;
 export function spray(P, dt, brake) {
   const sp = P.v / 30, e = Math.abs(P.edge), side = P.edge > 0 ? -1 : 1;
   const dx = Math.sin(P.h), dz = -Math.cos(P.h), rx = Math.cos(P.h), rz = Math.sin(P.h);
-  acc += dt * (0.35 + sp) * (50 + e * 1350 + brake * 1500);
+  acc += dt * (0.35 + sp) * (50 + e * 1350 + brake * 1500) * (LEVEL.spray || 1);
   let n = Math.min(90, acc | 0); acc -= n;
   while (n-- > 0) {
     const along = rand(-0.9, 0.5), sheet = Math.random() < e * 1.4 || brake > 0.5;
@@ -109,7 +110,7 @@ export function carveTrench(P, grounded, brake) {
 }
 
 // ---- flakes: drifting snow that streaks into speed lines ---------------------------------
-const F = 380, BOX = new THREE.Vector3(46, 26, 70);
+const F = Math.round(380 * (LEVEL.flakes || 1)), BOX = new THREE.Vector3(46, 26, 70);
 const fBase = new Float32Array(F * 3), fPos = new Float32Array(F * 6);
 for (let i = 0; i < F * 3; i += 3) { fBase[i] = rand(BOX.x); fBase[i + 1] = rand(BOX.y); fBase[i + 2] = rand(BOX.z); }
 const fGeo = new THREE.BufferGeometry();

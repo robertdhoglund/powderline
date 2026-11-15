@@ -25,8 +25,8 @@ const arrows = Array.from({ length: 8 }, () => {
 let wasFull = false;
 
 // Focus is the slow motion. Quick shots stay in real time. You focus by choice: hold the draw past full,
-// hold the focus button (right mouse or Shift), or draw in the middle of a real jump.
-const wantFocus = () => A.drawing && (G.input.focus || A.hold > T.drawTime + T.focusHold || (!P.grounded && P.air > 0.3));
+// or hold the focus button (right mouse or Shift). Nothing else ever slows or freezes time.
+const wantFocus = () => A.drawing && (G.input.focus || A.hold > T.drawTime + T.focusHold);
 export const focusScale = () => (A.focusOn ? (P.grounded ? T.focusGround : T.focusAir) : 1);
 export function startDraw() { if (G.mode !== 'run' || A.drawing) return; A.drawing = true; A.draw = 0; A.hold = 0; wasFull = false; }
 export function cancelDraw(silent) { if (A.drawing) { A.drawing = false; A.draw = 0; if (!silent) sfx('cancel'); } }

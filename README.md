@@ -1,4 +1,4 @@
-# POWDERLINE (v0.6)
+# POWDERLINE (v0.7)
 
 A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 
@@ -19,7 +19,7 @@ Then open `http://localhost:8000` in a desktop browser. Do not open `index.html`
 | Jump | `Space` |
 | Draw the bow | hold left mouse |
 | Shoot | release |
-| Slow motion | keep holding past full draw, or hold right mouse or `Shift` |
+| Slow motion | keep holding past full draw, or hold right mouse or `Shift`. Nothing else slows time |
 | Cancel a shot | `Q` |
 | Music on or off | `M` |
 | Pause / restart | `P` / `R` |
@@ -33,7 +33,7 @@ Things to know:
 - **The arrow lands where the reticle points.** It flies a real arc, but the launch is solved for you, with some magnetism near targets. Hitting the glowing core is a PERFECT.
 - **Focus** (the ring around the reticle) is the slow motion. Quick shots happen in real time. Hold past full draw to focus; it drains while you do and refills on kills. When it is empty, your aim sways.
 - **Goblins throw snowballs** at where you are heading. Carve to dodge.
-- **Rank** is goblins hit, gates made and speed. Slow motion costs time.
+- **Rank** needs a share of the goblins, the same share of the gates, and a time against par. A is 90% of both, on par. The clock under the speed shows your time and par.
 - **Base camp** is where you pick a mountain and buy upgrades with coins.
 - **Spin** by holding a direction in the air.
 - **Ice walls** want an arrow. Riding through one costs speed and your flow multiplier, never the run.

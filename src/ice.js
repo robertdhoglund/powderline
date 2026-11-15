@@ -91,7 +91,7 @@ function makePanel(kind, O, A, B, w, b0, b1, cellSize, th) {
 for (const s of sheets) {
   const x = cx(s.d) + s.u, sl = (height(cx(s.d - 4), -(s.d - 4)) - height(cx(s.d + 4), -(s.d + 4))) / 8, nrm = new THREE.Vector3(0, 1, -sl).normalize();
   const B = new THREE.Vector3(-dcx(s.d), sl, 1).normalize(), A = new THREE.Vector3().crossVectors(nrm, B).normalize();
-  makePanel('sheet', new THREE.Vector3(x, height(cx(s.d), -s.d), -s.d).addScaledVector(nrm, 0.2), A, B, s.w, -s.len / 2, s.len / 2, 2.2, 0.16);
+  makePanel('sheet', new THREE.Vector3(x, height(cx(s.d), -s.d), -s.d).addScaledVector(nrm, 0.2), A, B, s.w, -s.len / 2, s.len / 2, Math.max(2.2, Math.sqrt(s.w * s.len / 75)), 0.16);
 }
 for (const s of walls) {
   const x = cx(s.d) + s.u, A = new THREE.Vector3(1, 0, dcx(s.d)).normalize();
@@ -135,7 +135,7 @@ export function updateIce(dt) {
       const was = prevSide.get(p); prevSide.set(p, n);
       if (was !== undefined && was * n < 0 && Math.abs(a) < p.w / 2 && b < p.b1 && G.mode === 'run') {
         G.stats.ice--; breakPanel(p, P.chest, P.vel.clone().multiplyScalar(0.55), false);
-        P.v *= 0.6; breakFlow(); shake(0.75); flash(0.4); hitstop(0.06); pop('CRASH');
+        P.v *= 0.6; breakFlow(); shake(0.75); flash(0.4); pop('CRASH');
       }
     }
     if (p.state !== 1) continue;
@@ -162,7 +162,7 @@ export function arrowHit(p0, p1, dir) {
     const hit = new THREE.Vector3().lerpVectors(p0, p1, s0 / (s0 - s1 || 1)), [a, b] = local(p, hit);
     if (Math.abs(a) > p.w / 2 || b < p.b0 || b > p.b1) continue;
     breakPanel(p, hit, dir.clone().multiplyScalar(p.kind === 'wall' ? 15 : 5), true);
-    hitstop(0.05); award(p.kind === 'wall' ? 300 : 200, p.kind === 'wall' ? 'WALL DOWN' : 'ICE BREAK');
+    award(p.kind === 'wall' ? 300 : 200, p.kind === 'wall' ? 'WALL DOWN' : 'ICE BREAK');
     return true;
   }
   return false;

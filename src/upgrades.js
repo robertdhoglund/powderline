@@ -1,6 +1,7 @@
 // Things to buy in the lobby with coins. Each has a few levels; cost rises per level.
 import { T } from './config.js';
 import { upLevel } from './store.js';
+import { LEVEL } from './levels.js';
 
 export const UPGRADES = [
   { id: 'draw', name: 'QUICK DRAW', desc: 'The bow draws faster', max: 3, cost: [400, 900, 1800] },
@@ -16,6 +17,6 @@ export function applyUpgrades() {
   T.drawTime = BASE.drawTime * Math.pow(0.84, upLevel('draw'));
   T.focusDrain = BASE.focusDrain * Math.pow(0.8, upLevel('focus'));
   T.assistAngle = BASE.assistAngle * (1 + 0.35 * upLevel('magnet'));
-  T.dragQuad = BASE.dragQuad * Math.pow(0.92, upLevel('wax'));
+  T.dragQuad = BASE.dragQuad * Math.pow(0.92, upLevel('wax')) * (LEVEL.drag || 1);
 }
 applyUpgrades();

@@ -69,7 +69,8 @@ const NIGHT = { top: C('#030821'), mid: C('#0e3568'), hor: C('#36d9cb'), sun: C(
 const DAWN = { top: C('#27407e'), mid: C('#c96a8a'), hor: C('#ffc46a'), sun: C('#fff6d8'), halo: C('#ff9a3a'), sky: C('#b9a8e8'), gnd: C('#5a4a8e'), light: C('#ffd0a0'), shade: C('#6a6ac8'), stars: 0.1, aurora: 0 };
 const MORNING = { top: C('#3565c4'), mid: C('#eea2b6'), hor: C('#ffe2b4'), sun: C('#fff8e4'), halo: C('#ffae6a'), sky: C('#c6d2ff'), gnd: C('#7078c4'), light: C('#ffe0bc'), shade: C('#8088e0'), stars: 0, aurora: 0, gain: 0.86 };
 const DAY = { top: C('#0f48c8'), mid: C('#3f8cf0'), hor: C('#a4ceff'), sun: C('#ffffff'), halo: C('#9cc8ff'), sky: C('#cfe0ff'), gnd: C('#6f8cd8'), light: C('#fff2dc'), shade: C('#5f80e8'), stars: 0, aurora: 0, gain: 0.72 };
-const NAMED = { DUSK, GLOW, NIGHT, DAWN, MORNING, DAY };
+const LANTERN = { top: C('#070b30'), mid: C('#1d2470'), hor: C('#5a48a8'), sun: C('#eef2ff'), halo: C('#6a78e0'), sky: C('#5a6ad8'), gnd: C('#1c1f5c'), light: C('#c4d0ff'), shade: C('#2c3aa0'), stars: 1.0, aurora: 0, gain: 0.82 };
+const NAMED = { DUSK, GLOW, NIGHT, DAWN, MORNING, DAY, LANTERN };
 const PAL = LEVEL.pal.map(([p, name]) => [p, NAMED[name]]);
 const KEYS = ['top', 'mid', 'hor', 'sun', 'halo', 'sky', 'gnd', 'light', 'shade'];
 export const pal = { gain: 1, top: C(0), mid: C(0), hor: C(0), sun: C(0), halo: C(0), sky: C(0), gnd: C(0), light: C(0), shade: C(0), fog: C(0), stars: 0, aurora: 0 };
@@ -86,7 +87,7 @@ Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, n
 sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.06;
 scene.add(hemi, sun, sun.target);
 export function sunFocus(p) { sun.target.position.copy(p); sun.position.copy(p).addScaledVector(sunDir, 110); sun.target.updateMatrixWorld(); }
-scene.fog = new THREE.FogExp2(0xffffff, 0.0027);
+scene.fog = new THREE.FogExp2(0xffffff, LEVEL.fog || 0.0027);
 
 // Rim light: every lit surface picks up the low sun along its silhouette.
 export function rim(material, strength = 0.6, power = 3) {

@@ -109,7 +109,7 @@ function readInput() {
   if (has('shift')) I.focus = true; else if (!mouseFocus) I.focus = false;
   I.tuck = has('w', 'arrowup') || touch.tuck; I.brake = has('s', 'arrowdown') || touch.brake;
   if (!I.turn) I.turn = touch.turn;
-  if (G.auto && G.mode === 'run') autopilot();
+  if (G.auto && G.mode === 'run') { autopilot(); if (Q.has('tuck')) I.tuck = true; }
 }
 
 // Autopilot: used by the smoke test (?auto=1). Rides the gates and shoots what it sees.

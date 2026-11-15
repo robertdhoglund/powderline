@@ -105,7 +105,7 @@ export function killEnemy(e, perfect, dir) {
   if (e.pos2) { burst(e.pos2, 26, FLAME, { speed: 14, size: 0.5, life: 0.9, up: 1 }); ring(e.pos2, FLAME, 9, 0.4); }
   else snow.puff(e.pos, 30, 1.3);
   ring(e.pos, GOLD, perfect ? 12 : 7, perfect ? 0.5 : 0.38);
-  hitstop(perfect ? 0.11 : 0.07); shake(perfect ? 0.4 : 0.26);
+  shake(perfect ? 0.45 : 0.3); G.punch += perfect ? 0.3 : 0.18;
   sfx('hit', G.flow); if (perfect) sfx('perfect');
   G.stats.kills++; if (perfect) G.stats.perfect++;
   G.aim.focus = Math.min(1, G.aim.focus + 0.4);

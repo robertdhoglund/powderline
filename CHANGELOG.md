@@ -1,5 +1,43 @@
 # Changes and handoffs
 
+## v0.7 | 2026-11-15 | Claude
+
+No more pauses, ranks you can read, and four mountains that ride differently.
+
+**Changed**
+
+- **Nothing freezes time any more.** Goblin hits, ice breaks and wall crashes used to freeze the game for a few hundredths of a second each. That is gone. Slow motion now happens only while you hold a draw past full, or hold right mouse or Shift. Drawing in the air no longer slows time by itself. The hold before slow motion is a little longer (0.45 s).
+- **Ranks E, D, C, B, A, S as plain rules.** Each rank needs a share of the goblins, the same share of the gates, and a time against the level's par:
+  - S: 97% of both, 7% under par
+  - A: 90% of both, on par
+  - B: 75%, within 12% of par
+  - C: 55%, within 28%
+  - D: 35%, within 50%
+  - E: anything else
+  The finish screen says what the next rank still needs. A run clock against par sits under the speed. The next mountain opens at rank D.
+- **Each mountain has its own kind of track.**
+  - Trollheim (Norway, sunset): forest slalom, and a frozen fjord: one long sheet of ice, three walls in a row, raiders ahead.
+  - Kitsune Ridge (Japan, lantern night): torii tunnels lined with paper lanterns, deep powder (more spray, a little slower), heavy snowfall, wide flowing turns.
+  - Couloir Noir (France, bluebird day): hardpack (faster, less spray), steep rock-walled couloirs, race gates, clear air.
+  - Aurora Spines (Alaska, polar dawn): above the treeline, wide open faces with cliff after cliff, the most goblins, night turning to morning.
+- Level feel is data: `spray`, `drag`, `flakes`, `fog` and `par` per level in `src/levels.js`.
+- Big ice sheets break into bigger plates; landing snow bursts are thinner so they do not hide the rider.
+
+**Tested**
+
+- `npm run check` and `npm test` pass.
+- All four levels were run to the finish by the autopilot, with and without tucking, with no errors. Par times come from those runs: par is just under the autopilot's time without tucking.
+- On Trollheim the autopilot gets B: 69 of 77 goblins (one short of 90%), every gate, one second inside par.
+- Frames of the torii tunnel, couloir and spine sections were reviewed.
+- **Not tested by a person:** whether A now feels hard but fair. Par is the number to change if not.
+
+**Known issues**
+
+- Alaska has only 9 gates, so each one is worth a lot of the gate share.
+- Couloir rock walls are decoration: you ride the snow bank, not the rock.
+
+---
+
 ## v0.6 | 2026-11-15 | Claude
 
 Country scenery, opt-in slow motion, an inked look for the hero and goblins, and a soundtrack.

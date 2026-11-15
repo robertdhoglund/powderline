@@ -16,7 +16,7 @@ export const FINISH = (sections[sections.length - 1].b0 + 2.5) * B;
 
 // ---- features ---------------------------------------------------------------------------
 // sentries are goblins: tower ones stand on a watchtower, the others hang under a lantern balloon. pacers are sled raiders.
-export const gates = [], sentries = [], pacers = [], kickers = [], drops = [], ravines = [], sheets = [], walls = [], islands = [], flags = [], torches = [];
+export const gates = [], sentries = [], pacers = [], kickers = [], drops = [], ravines = [], sheets = [], walls = [], islands = [], flags = [], torches = [], arches = [], lamps = [], crags = [];
 const at = (s, b) => (s.b0 + b) * B;
 const gate = (s, b, u) => gates.push({ d: at(s, b), u });
 const tower = (s, b, side) => { sentries.push({ d: at(s, b), u: side * (s.width - 2.2), h: 3.3, tower: true }); torches.push({ d: at(s, b) + 2, u: side * (s.width - 0.6) }); };
@@ -66,6 +66,27 @@ const recipes = {
   cliffs(s, n) { // drops with targets hanging in the fall line
     let side = 1;
     for (let b = 2, i = 0; b < n - 1.5; b += 3, i++) { drop(s, b, 5 + i * 1.5); balloon(s, b + 0.9, (r0() - 0.5) * 6, 6.5 + i * 0.5); if (i % 2) balloon(s, b + 1.1, (r0() - 0.5) * 6, 6); tower(s, b + 1.7, side); side = -side; }
+  },
+  torii(s, n) { // Japan: a tunnel of gates, lanterns down both sides. Every fourth torii scores as a gate.
+    for (let b = 1, i = 0; b < n - 0.5; b += 0.5, i++) { arches.push({ d: at(s, b), w: s.width }); if (i % 4 === 2) gate(s, b, 0); if (i % 2) for (const sd of [-1, 1]) lamps.push({ d: at(s, b) + 3, u: sd * (s.width + 0.8) }); }
+    for (let b = 3; b < n - 2; b += 4) balloon(s, b, (r0() - 0.5) * 3, 6.2);
+    if (n >= 10) pacer(s, n * 0.3);
+  },
+  couloir(s, n) { // France: a steep slot between rock walls, race gates down the middle
+    for (let b = 0.4; b < n - 0.2; b += 0.42) for (const sd of [-1, 1]) crags.push({ d: at(s, b) + r0() * 3, u: sd * (s.width + 4.5 + r0() * 2.5), s: 1 + r0() * 1.2 });
+    slalom(s, 1.2, n - 1, 1.3, Math.max(1.2, s.width - 3.6));
+    balloon(s, n * 0.5, 0, 6); balloon(s, n - 1.2, 0, 6);
+  },
+  spine(s, n) { // Alaska: a big open face, cliff after cliff, targets hanging in the fall line
+    for (let b = 2, i = 0; b < n - 1.5; b += 2.6, i++) { drop(s, b, 6 + (i % 3) * 2); balloon(s, b + 0.9, (r0() - 0.5) * 10, 7.5); balloon(s, b + 1.4, (r0() - 0.5) * 10, 6.5); if (i % 2) pacer(s, b + 1.2); }
+    tower(s, n * 0.5, 1); tower(s, n - 1, -1);
+  },
+  fjord(s, n) { // Norway: a frozen fjord. One long sheet of ice, three walls in a row, raiders skating ahead
+    sheet(s, 1.6, n * 0.34, 0, 2 * s.width - 6); wall(s, n * 0.45); wall(s, n * 0.56, -3); wall(s, n * 0.67, 3);
+    sheet(s, n * 0.72, n * 0.2, 0, 2 * s.width - 8);
+    pacer(s, 1.5); pacer(s, n * 0.5);
+    for (let b = 2; b < n - 1; b += 2.4) balloon(s, b, (r0() - 0.5) * 2 * (s.width - 3), 3.9 + r0() * 1.5);
+    tower(s, n - 1.5, 1); tower(s, n - 1.1, -1);
   },
   park(s, n) { // kickers, each bigger than the last, balloons strung over every landing
     for (let i = 0, b = 2; b < n - 2.5; i++, b += 3.6) {

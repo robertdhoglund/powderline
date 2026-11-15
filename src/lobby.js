@@ -8,21 +8,32 @@ import { sfx } from './audio.js';
 import { clamp } from './util.js';
 
 const $ = (id) => document.getElementById(id);
-const ORDER = ['D', 'C', 'B', 'A', 'S'];
-export const unlocked = (i) => i === 0 || (save.best[LEVELS[i - 1].id] && save.best[LEVELS[i - 1].id].rank !== 'D');
+const ORDER = ['E', 'D', 'C', 'B', 'A', 'S'];
+export const unlocked = (i) => i === 0 || (save.best[LEVELS[i - 1].id] && save.best[LEVELS[i - 1].id].rank !== 'E');
+export const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
-// Score is goblins, gates and speed. A rank takes most of the goblins, nearly every gate, and a fast time.
+// Ranks are plain rules. Each needs a share of the goblins, the same share of the gates, and a time.
+// A is 90% of both, on time (the level's par). S is nearly everything, faster than par.
+export const RANKS = [['S', 0.97, 0.93], ['A', 0.9, 1.0], ['B', 0.75, 1.12], ['C', 0.55, 1.28], ['D', 0.35, 1.5]];
 export function settle() {
-  const s = G.stats, t = G.totals, fast = FINISH / 33, slow = FINISH / 20;
-  const speed = clamp((slow - s.time) / (slow - fast), 0, 1), gob = s.kills / t.targets, gate = s.gates / t.gates;
-  const rating = 0.4 * gob + 0.25 * gate + 0.35 * speed;
-  const rank = rating >= 0.9 ? 'S' : rating >= 0.78 ? 'A' : rating >= 0.6 ? 'B' : rating >= 0.42 ? 'C' : 'D';
-  const speedBonus = Math.round(speed * 500) * 100; G.score += speedBonus;
-  const coins = Math.round(G.score / 250) + { S: 800, A: 450, B: 200, C: 80, D: 0 }[rank];
+  const s = G.stats, t = G.totals, par = LEVEL.par || FINISH / 28;
+  const gob = s.kills / t.targets, gate = s.gates / t.gates, time = s.time;
+  const got = RANKS.find(([, share, k]) => gob >= share && gate >= share && time <= par * k);
+  const rank = got ? got[0] : 'E';
+  // What the next rank up still needs.
+  const up = RANKS[(got ? RANKS.indexOf(got) : RANKS.length) - 1], need = [];
+  if (up) {
+    if (gob < up[1]) need.push(`${Math.ceil(up[1] * t.targets) - s.kills} more goblins`);
+    if (gate < up[1]) need.push(`${Math.ceil(up[1] * t.gates) - s.gates} more gates`);
+    if (time > par * up[2]) need.push(`${Math.ceil(time - par * up[2])} s faster`);
+  }
+  const speed = clamp(1 - (time - par) / (par * 0.5), 0, 1);
+  const speedBonus = Math.round(clamp(1.5 - time / par, 0, 1) * 600) * 100; G.score += speedBonus;
+  const coins = Math.round(G.score / 250) + { S: 900, A: 500, B: 250, C: 120, D: 50, E: 0 }[rank];
   const old = save.best[LEVEL.id], next = LEVELS[LEVELS.indexOf(LEVEL) + 1], wasLocked = next && !unlocked(LEVELS.indexOf(next));
   if (!old || ORDER.indexOf(rank) > ORDER.indexOf(old.rank) || (rank === old.rank && G.score > old.score)) save.best[LEVEL.id] = { rank, score: G.score };
   save.coins += coins; persist();
-  return { rank, speed, gob, gate, speedBonus, coins, opened: wasLocked && unlocked(LEVELS.indexOf(next)) ? next : null };
+  return { rank, speed, gob, gate, speedBonus, coins, par, need: up ? `FOR ${up[0]}: ${need.join(' · ')}` : 'A PERFECT RUN', opened: wasLocked && unlocked(LEVELS.indexOf(next)) ? next : null };
 }
 
 let onRide = null;
@@ -31,8 +42,8 @@ function render() {
   $('levels').innerHTML = LEVELS.map((l, i) => {
     const open = unlocked(i), best = save.best[l.id];
     return `<button class="lv${save.level === l.id ? ' on' : ''}${open ? '' : ' locked'}" data-level="${l.id}" ${open ? '' : 'disabled'}>
-      <small>${l.place} · ${l.time}</small><b>${l.name}</b>
-      <span>${open ? (best ? `BEST ${best.rank} · ${best.score.toLocaleString('en-US')}` : 'NOT RIDDEN YET') : `FINISH ${LEVELS[i - 1].name} WITH RANK C`}</span></button>`;
+      <small>${l.place} · ${l.time}</small><b>${l.name}</b><em>${l.blurb}</em>
+      <span>${open ? (best ? `BEST ${best.rank} · ${best.score.toLocaleString('en-US')} · PAR ${clock(l.par)}` : 'NOT RIDDEN YET') : `FINISH ${LEVELS[i - 1].name} WITH RANK D`}</span></button>`;
   }).join('');
   $('shop').innerHTML = UPGRADES.map((u) => {
     const lv = upLevel(u.id), cost = u.cost[lv], full = lv >= u.max;

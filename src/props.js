@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { chunked, chunkOf } from './world.js';
 import { LEVEL } from './levels.js';
-import { height, cx, dcx, widthAt, FINISH, sentries, torches, flags } from './course.js';
+import { height, cx, dcx, widthAt, FINISH, sentries, torches, flags, arches, lamps, crags } from './course.js';
 import { part, place, merge, toon, cyl, cone, box, sph } from './build.js';
 import { rng } from './util.js';
 
@@ -115,6 +115,25 @@ if (LEVEL.id === 'alps') for (let d = 260; d < FINISH; d += 330) {
   p.push(part(cyl(0.05, 0.05, w * 2, 5), DARK, [0, H + 0.2, 0], [0, 0, 1.5708]), part(box(0.1, 1.6, 0.1), DARK, [w * 0.25, H - 0.6, 0]), part(box(2.4, 2.1, 2.0), '#d82c34', [w * 0.25, H - 2.4, 0]),
     part(box(2.45, 0.8, 1.5), GLOW, [w * 0.25, H - 2.1, 0]), part(box(2.5, 0.2, 2.1), SNOW, [w * 0.25, H - 1.3, 0]));
   put(d, place(p, [cx(d), height(cx(d), -d), -d], [0, yaw(d), 0]));
+}
+// Torii tunnel (Japan): tall gates spanning the whole piste, paper lanterns on poles either side.
+const VERM = [1.2, 0.2, 0.14];
+for (const a of arches) {
+  const w = a.w - 0.2, h = 6.4;
+  put(a.d, place([part(cyl(0.24, 0.3, h, 8), VERM, [-w, h / 2, 0]), part(cyl(0.24, 0.3, h, 8), VERM, [w, h / 2, 0]), part(box(w * 2 + 2.4, 0.46, 0.7), VERM, [0, h + 0.1, 0]), part(box(w * 2 + 3.0, 0.26, 0.9), '#1d1626', [0, h + 0.46, 0]),
+    part(box(w * 2 + 3.0, 0.2, 0.94), SNOW, [0, h + 0.68, 0]), part(box(w * 2 + 0.6, 0.3, 0.4), VERM, [0, h - 1.0, 0]), part(box(0.7, 0.5, 0.7), '#3c3a58', [-w, 0.25, 0]), part(box(0.7, 0.5, 0.7), '#3c3a58', [w, 0.25, 0])],
+    [cx(a.d), height(cx(a.d), -a.d) - 0.2, -a.d], [0, yaw(a.d), 0]));
+}
+for (const l of lamps) {
+  const x = cx(l.d) + l.u, z = -l.d;
+  put(l.d, place([part(cyl(0.05, 0.06, 2.6, 5), DARK, [0, 1.3, 0]), part(box(0.7, 0.06, 0.06), DARK, [0.3, 2.55, 0]), part(sph(0.34, 8, 6), [3.2, 1.5, 0.5], [0.55, 2.1, 0], [0, 0, 0], [1, 1.25, 1]),
+    part(cyl(0.2, 0.2, 0.08, 8), DARK, [0.55, 2.52, 0]), part(cyl(0.2, 0.2, 0.08, 8), DARK, [0.55, 1.68, 0])], [x, height(x, z) - 0.2, z], [0, yaw(l.d) + (l.u > 0 ? Math.PI : 0), 0]));
+}
+// Couloir walls (France): rock spires crowding the edge of the piste.
+for (const c of crags) {
+  const x = cx(c.d) + c.u, z = -c.d, hh = 8 + c.s * 6;
+  put(c.d, place([part(new THREE.OctahedronGeometry(1, 0), '#4a486e', [0, hh * 0.42, 0], [r() * 0.3, r() * 3, r() * 0.3], [2.3 * c.s, hh * 0.6, 2.1 * c.s]), part(new THREE.OctahedronGeometry(1, 0), '#36345a', [r() * 2 - 1, hh * 0.18, r() * 2 - 1], [0.4, r() * 3, 0.3], [2.8 * c.s, hh * 0.3, 2.6 * c.s]),
+    part(new THREE.OctahedronGeometry(1, 0), SNOW, [0, hh * 0.93, 0], [0, r() * 3, 0], [1.0 * c.s, 1.3, 0.95 * c.s])], [x, height(x, z) - 0.5, z]));
 }
 const propMat = toon(0.5, 0.2);
 for (const [c, parts] of chunks) { const m = new THREE.Mesh(merge(parts), propMat); m.castShadow = true; chunked(m, c); }

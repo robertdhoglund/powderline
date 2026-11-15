@@ -150,7 +150,7 @@ export function resetPlayer() {
 function land(impact) {
   const k = clamp(impact / 16, 0, 1);
   P.squash = Math.max(P.squash, 0.35 + k * 0.65); G.punch += 0.25 + k * 0.9; shake(0.12 + k * 0.4);
-  snow.puff(P.pos, 50 + (k * 130 | 0), 0.9 + k * 0.9, P.fwd.x * P.v * 0.35, 0, P.fwd.z * P.v * 0.35);
+  snow.puff(P.pos, 30 + (k * 60 | 0), 0.8 + k * 0.6, P.fwd.x * P.v * 0.35, 0, P.fwd.z * P.v * 0.35);
   sfx('land', k);
   if (k > 0.12) {
     const m = craters[craterN++ % craters.length], gr = grad(P.x, P.z), sc = 0.6 + k * 0.8;
