@@ -17,13 +17,13 @@ Physically based rendering, a Link-style ranger rebuilt at that quality, and air
 - **Trees.** Layered firs: six or seven thin drooping skirts, each with a shelf of snow.
 - **Air tricks.** In the air: hold left or right to spin, tap up for a front flip or down for a backflip (hold for more), hold `E` or `F` to grab. On touch: left thumb sideways spins, up or down flips, tap right to grab. A flip finishes its turn by itself once started.
   - Scores: 150 per half spin, 500 per flip, 400 per second of grab; two kinds in one jump multiply by 1.6, three by 2.4, and flow multiplies on top.
-  - Land a flip or spin too far off square and it is SKETCHY: no points, some speed and your flow lost. Steering in the air to line up a landing never counts against you.
+  - Land a flip too far off square and it is SKETCHY: no points, some speed and your flow lost. Spins snap to the nearest half turn and are never sketchy, so steering in the air to line up a landing cannot count against you.
   - **Tricks count toward the verdict:** a full style score (6,000 raw points) adds 8 points to both the goblin share and the gate share, so tricks can carry you over a rank line. The finish screen shows STYLE with a bar.
 - **Camera** sits closer and widens less with speed; the rider is drawn larger.
 
 **Tested**
 
-- `npm run check` and `npm test` pass.
+- `npm run check` and `npm test` pass; all four levels finish under autopilot with no errors.
 - A scripted backflip with a grab off the icefall jump lands clean and scores (1,820 style points). Spins, front flips and the sketchy landing were not each tested separately.
 - Rider close-ups and two gameplay frames were reviewed.
 - **Performance unverified.** Physically based shading and the environment map cost more than the old materials.

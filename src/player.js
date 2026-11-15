@@ -191,12 +191,12 @@ function land(impact) {
     burst(P.pos, 10 + (k * 26 | 0), SNOWC, { speed: 5 + k * 6, size: 0.09, life: 1.1, up: 3 + k * 3, gravity: 18, dir: _d.set(P.fwd.x * P.v * 0.5, 0, P.fwd.z * P.v * 0.5) });
   }
   // Score the tricks. A flip or spin has to come round close to square, or the landing is sketchy and scores nothing.
-  if (Math.abs(P.spin) < 1.3) P.spin = 0;   // steering in the air to line up a landing is not a trick, and never sketchy
+  if (Math.abs(P.spin) < 2.2) P.spin = 0;   // steering in the air to line up a landing is not a trick
   const spins = Math.round(Math.abs(P.spin) / Math.PI), flips = Math.round(Math.abs(P.flip) / 6.2832), grab = Math.round(P.grabT * 10) / 10;
   const offSpin = Math.abs(Math.abs(P.spin) - spins * Math.PI), offFlip = Math.abs(Math.abs(P.flip) - flips * 6.2832), back = P.flip > 0;
   P.spin = 0; P.flip = 0; P.flipDir = 0; P.grabT = 0; P.grab = 0;
   if (G.mode === 'run' && (spins || flips || grab >= 0.3 || offFlip > 1)) {
-    if (offFlip > 1.1 || offSpin > 1.0) { P.v *= 0.72; breakFlow(); shake(0.5); pop('SKETCHY'); G.stats.sketchy++; }
+    if (offFlip > 1.1) { P.v *= 0.72; breakFlow(); shake(0.5); pop('SKETCHY'); G.stats.sketchy++; }
     else {
       const kinds = (spins ? 1 : 0) + (flips ? 1 : 0) + (grab >= 0.3 ? 1 : 0), mult = [1, 1, 1.6, 2.4][kinds];
       const pts = Math.round((spins * 150 + flips * 500 + (grab >= 0.3 ? grab * 400 : 0)) * mult / 10) * 10;
