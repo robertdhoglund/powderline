@@ -8,6 +8,14 @@ Automated: `npm run check` and `npm test`. Everything below needs a person and a
 - [ ] Frame rate feels smooth. Note where it drops.
 - [ ] `P` pauses and resumes. `R` restarts instantly. The finish screen shows a rank and RIDE AGAIN works.
 
+**Look (v0.11)**
+
+- [ ] The rider reads at a glance from behind: white hair, violet tunic, glowing board edge.
+- [ ] Two light trails follow the board and change colour as flow climbs (cyan, magenta, gold).
+- [ ] Scarves and hair swing across on carves and do not tangle or stretch.
+- [ ] Glow is strong but nothing washes out to white, on all four mountains.
+- [ ] The title screen shows the rider from the front, looking at you.
+
 **Ride**
 
 - [ ] `A` / `D` carve; the board leans and throws snow off the outside edge.

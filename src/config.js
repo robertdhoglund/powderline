@@ -32,5 +32,5 @@ export const T = {
 
   // Camera
   fovBase: 58, fovSpeed: 12, fovAim: 15,
-  camDist: 5.2, camHeight: 2.15,
+  camDist: 4.7, camHeight: 2.05,
 };

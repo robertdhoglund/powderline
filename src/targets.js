@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { scene } from './world.js';
-import { part, place, merge, toon, sph, cyl, cone, box, ink } from './build.js';
+import { part, place, merge, toon, loft, sph, cyl, cone, box } from './build.js';
 import * as snow from './snow.js';
 import { height, cx, dcx, slopeAt, sentries, pacers, gates, FINISH, widthAt } from './course.js';
 import { P } from './player.js';
@@ -12,39 +12,47 @@ import { LEVEL } from './levels.js';
 import { sfx } from './audio.js';
 import { clamp, rand } from './util.js';
 
-const GOLD = new THREE.Color('#ffb648').multiplyScalar(3), GREEN = new THREE.Color('#7fd058').multiplyScalar(1.2), HIDE = new THREE.Color('#5e3b2a'), FLAME = new THREE.Color('#ff7a2a').multiplyScalar(2.6), VIOLET = new THREE.Color('#b99cff').multiplyScalar(2.2);
+const GOLD = new THREE.Color('#ffb648').multiplyScalar(3), GREEN = new THREE.Color('#49c486').multiplyScalar(1.3), HIDE = new THREE.Color('#57309a'), FLAME = new THREE.Color('#ff7a2a').multiplyScalar(2.6), VIOLET = new THREE.Color('#b99cff').multiplyScalar(2.2);
 // ---- goblins ----------------------------------------------------------------------------
-const SKIN = '#6fae4c', SKIN2 = '#8cc65e', LEATHER = '#4d3024', METAL = '#7d7aa8', BONE = '#efe6d2', RED = '#c22a3c', WOOD = '#5e3b2a', EYE = [3.2, 2.5, 0.4];
-// One goblin, facing +Z. pose: 'club' (arm raised with a club), 'sit' (hunched, holding on).
+const SKIN = '#49c486', SKIN2 = '#7fe0a0', CLOTH = '#2c1b55', VEST = '#57309a', FUR = '#e2d6ff', METAL = '#6a66b8', BONE = '#f1e9da', RED = '#d62a5c', WOOD = '#4a2f3c', EYE = [3.4, 2.6, 0.4], HOTPINK = [2.2, 0.4, 1.1];
+const WHITE = '#ffffff';
+// One goblin, facing +Z: pear-shaped in a belted kilt and vest with a fur collar, a wide head under a horned helmet,
+// long flat ears, slanted glowing eyes, tusks. pose: 'club' (arm raised with a club), 'sit' (hunched, holding on).
 function goblin(pose) {
   const sit = pose === 'sit', p = [];
-  p.push(part(sph(0.34), LEATHER, [0, 0.62, 0], [0.15, 0, 0], [1, 1.08, 0.86]), part(cone(0.36, 0.42, 8), '#3b2a52', [0, 0.36, 0]));          // body, kilt
+  const bodyC = [CLOTH, CLOTH, HOTPINK, VEST, VEST, FUR, FUR];
+  p.push(part(loft([[0.2, 0.25, 0.22], [0.3, 0.33, 0.28], [0.42, 0.34, 0.29], [0.47, 0.33, 0.28], [0.66, 0.31, 0.26], [0.82, 0.23, 0.2], [0.86, 0.29, 0.25], [0.97, 0.17, 0.15]], (t) => bodyC[Math.min(6, Math.floor(t * 7))], 12), WHITE, [0, 0, 0], [0.12, 0, 0]));
   for (const s of [-1, 1]) {
-    p.push(part(cyl(0.085, 0.1, 0.36, 7), SKIN, [s * 0.15, 0.17, sit ? 0.12 : 0], [sit ? -0.9 : 0, 0, 0]), part(sph(0.12, 8, 6), LEATHER, [s * 0.16, 0.05, sit ? 0.3 : 0.07], [0, 0, 0], [1, 0.7, 1.5])); // legs, feet
-    p.push(part(cone(0.085, 0.5, 6), SKIN, [s * 0.44, 1.2, -0.02], [0.1, 0, -s * 1.15]));                                                    // long ears
-    p.push(part(sph(0.06, 7, 5), EYE, [s * 0.115, 1.19, 0.265]), part(cone(0.035, 0.14, 5), BONE, [s * 0.1, 1.0, 0.27], [0.25, 0, 0]));        // eyes, tusks
-    p.push(part(cone(0.07, 0.34, 6), BONE, [s * 0.24, 1.47, 0], [0, 0, -s * 0.55]), part(sph(0.15, 8, 6), '#6a5140', [s * 0.36, 0.86, 0]));    // horns, fur shoulders
+    p.push(part(cyl(0.075, 0.095, 0.34, 7), SKIN, [s * 0.15, 0.17, sit ? 0.12 : 0], [sit ? -0.9 : 0, 0, 0]), part(sph(0.12, 8, 6), CLOTH, [s * 0.16, 0.05, sit ? 0.3 : 0.08], [0, 0, 0], [1, 0.62, 1.6]));   // legs, feet
+    p.push(part(cone(0.1, 0.62, 6), SKIN, [s * 0.5, 1.2, -0.03], [0.12, 0, -s * 1.2], [1, 1, 0.34]));                                                            // long flat ears
+    p.push(part(box(0.15, 0.06, 0.04), EYE, [s * 0.125, 1.18, 0.275], [0, 0, -s * 0.38]), part(cone(0.035, 0.15, 5), BONE, [s * 0.11, 1.0, 0.27], [0.25, 0, 0]));       // slanted eyes, tusks
+    p.push(part(cone(0.065, 0.36, 6), BONE, [s * 0.25, 1.5, 0], [0, 0, -s * 0.6]), part(new THREE.SphereGeometry(0.13, 8, 5, 0, 6.283, 0, 1.6), METAL, [s * 0.34, 0.84, 0], [0, 0, -s * 0.5]));   // horns, pauldrons
   }
-  p.push(part(sph(0.31), SKIN, [0, 1.13, 0.02], [0, 0, 0], [1.08, 0.95, 1]), part(sph(0.2, 9, 7), SKIN2, [0, 1.03, 0.16], [0, 0, 0], [1.1, 0.7, 1]));  // head, jaw
-  p.push(part(cone(0.07, 0.24, 6), SKIN2, [0, 1.12, 0.36], [1.4, 0, 0]));                                                                        // nose
-  p.push(part(new THREE.SphereGeometry(0.33, 12, 6, 0, 6.283, 0, 1.45), METAL, [0, 1.19, 0]), part(cyl(0.34, 0.34, 0.06, 12), '#55527e', [0, 1.24, 0])); // helmet
+  p.push(part(sph(0.31), SKIN, [0, 1.13, 0.02], [0, 0, 0], [1.12, 0.92, 1]), part(sph(0.2, 9, 7), SKIN2, [0, 1.02, 0.17], [0, 0, 0], [1.12, 0.66, 1]));                // head, jaw
+  p.push(part(cone(0.065, 0.26, 6), SKIN2, [0, 1.11, 0.37], [1.4, 0, 0]));                                                                                             // nose
+  p.push(part(new THREE.SphereGeometry(0.335, 12, 6, 0, 6.283, 0, 1.4), METAL, [0, 1.19, 0]), part(cyl(0.345, 0.345, 0.055, 12), HOTPINK, [0, 1.25, 0]));                // helmet with a lit band
   // right arm with club, left arm with shield
-  p.push(part(cyl(0.07, 0.085, 0.5, 7), SKIN, [sit ? 0.54 : 0.49, sit ? 0.79 : 1.03, 0.05], [0.2, 0, sit ? -1.94 : -0.65]));
-  p.push(...place([part(cyl(0.11, 0.055, 0.8, 7), WOOD, [0, 0.35, 0]), part(cone(0.05, 0.16, 5), BONE, [0.1, 0.62, 0], [0, 0, -1.3]), part(cone(0.05, 0.16, 5), BONE, [-0.1, 0.5, 0], [0, 0, 1.3]), part(cone(0.05, 0.16, 5), BONE, [0, 0.56, 0.1], [1.3, 0, 0])],
+  p.push(part(cyl(0.06, 0.085, 0.5, 7), SKIN, [sit ? 0.54 : 0.49, sit ? 0.79 : 1.03, 0.05], [0.2, 0, sit ? -1.94 : -0.65]));
+  p.push(...place([part(cyl(0.12, 0.05, 0.82, 7), WOOD, [0, 0.35, 0]), part(cone(0.05, 0.17, 5), BONE, [0.11, 0.62, 0], [0, 0, -1.3]), part(cone(0.05, 0.17, 5), BONE, [-0.11, 0.5, 0], [0, 0, 1.3]), part(cone(0.05, 0.17, 5), BONE, [0, 0.56, 0.11], [1.3, 0, 0])],
     sit ? [0.72, 0.72, 0.1] : [0.68, 1.22, 0.05], [0.3, 0, sit ? -1.0 : -0.5]));
-  p.push(part(cyl(0.07, 0.085, 0.42, 7), SKIN, [-0.46, 0.72, 0.14], [1.0, 0, 0.5]));
-  p.push(part(cyl(0.36, 0.36, 0.07, 12), WOOD, [-0.5, 0.66, 0.36], [1.5708, 0, 0]), part(sph(0.11, 8, 6), METAL, [-0.5, 0.66, 0.42]), part(cyl(0.37, 0.37, 0.03, 12), RED, [-0.5, 0.66, 0.39], [1.5708, 0, 0], [1, 1, 0.55]));
+  p.push(part(cyl(0.06, 0.085, 0.42, 7), SKIN, [-0.46, 0.72, 0.14], [1.0, 0, 0.5]));
+  p.push(part(cyl(0.37, 0.37, 0.06, 14), CLOTH, [-0.5, 0.66, 0.36], [1.5708, 0, 0]), part(cyl(0.3, 0.3, 0.03, 14), RED, [-0.5, 0.66, 0.395], [1.5708, 0, 0]), part(cyl(0.2, 0.2, 0.03, 14), CLOTH, [-0.5, 0.66, 0.41], [1.5708, 0, 0]), part(sph(0.09, 8, 6), HOTPINK, [-0.5, 0.66, 0.43]));
   return p;
 }
+// The lantern balloon: paper gores in two warm tones, glowing from the burner inside.
+const lantern = (() => {
+  const rings = [], n = 12; for (let i = 0; i <= n; i++) { const a = (i / n) * Math.PI * 0.94 + 0.1, r = Math.sin(a) * 1.38; rings.push([-Math.cos(a) * 1.5, r, r]); }
+  return loft(rings, (t, ang) => (Math.floor(ang / 6.2832 * 12) % 2 ? new THREE.Color(1.9, 0.62, 0.34) : new THREE.Color(1.75, 0.36, 0.52)), 12);
+})();
 const S = 1.55; // goblins are drawn big so they read at range
 const towerGeo = merge(place(goblin('club'), [0, -0.95, 0], [0, 0, 0], S));
 // Balloon goblin: a patched lantern balloon that glows from the burner, a basket, a goblin holding on.
 const balloonGeo = merge([
   ...place(goblin('sit'), [0, -1.2, 0], [0, 0, 0], S * 0.9),
-  part(cyl(0.72, 0.6, 0.62, 10), WOOD, [0, -0.95, 0]), part(cyl(0.76, 0.76, 0.08, 10), LEATHER, [0, -0.64, 0]),
+  part(cyl(0.72, 0.6, 0.62, 10), WOOD, [0, -0.95, 0]), part(cyl(0.76, 0.76, 0.08, 10), HOTPINK, [0, -0.64, 0]),
   ...[0, 1, 2, 3].map((i) => part(cyl(0.02, 0.02, 2.3, 4), BONE, [Math.cos(i * 1.571 + 0.78) * 0.62, 0.45, Math.sin(i * 1.571 + 0.78) * 0.62], [Math.sin(i * 1.571 + 0.78) * 0.12, 0, -Math.cos(i * 1.571 + 0.78) * 0.12])),
-  part(sph(1.35, 16, 12), [1.75, 0.72, 0.3], [0, 2.9, 0], [0, 0, 0], [1, 1.12, 1]), part(cone(0.9, 1.3, 12), [1.5, 0.55, 0.22], [0, 1.75, 0], [Math.PI, 0, 0]),
-  part(cyl(1.37, 1.37, 0.16, 16), RED, [0, 3.0, 0]), part(cyl(1.02, 1.02, 0.14, 16), RED, [0, 3.95, 0]), part(sph(0.5, 8, 6), '#7a3b6e', [0.95, 3.2, 0.75], [0, 0, 0], [1, 1, 0.5]),
+  part(lantern, WHITE, [0, 2.95, 0]), part(cone(0.86, 1.3, 12), [1.5, 0.3, 0.45], [0, 1.72, 0], [Math.PI, 0, 0]),
+  part(cyl(1.41, 1.41, 0.16, 16), RED, [0, 3.0, 0]), part(cyl(1.1, 1.1, 0.14, 16), RED, [0, 3.95, 0]), part(sph(0.5, 8, 6), '#7a3b6e', [0.95, 3.2, 0.75], [0, 0, 0], [1, 1, 0.5]),
   part(sph(0.16, 6, 5), [4, 2.6, 0.8], [0, 1.25, 0]),
 ]);
 // Raider: a goblin crouched on a plank sled with a war banner.

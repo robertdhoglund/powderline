@@ -45,9 +45,9 @@ export function updateCamera(rdt) {
   snap = false;
 }
 
-// Slow drift around the rider behind the title screen.
+// Behind the title screen: a slow arc round the front of the rider, close enough to see who you are riding as.
 export function titleCamera(t) {
-  const a = 0.45 + Math.sin(t * 0.15) * 0.3;
-  camera.position.set(P.x + Math.sin(a) * 9, P.y + 3.4, P.z + Math.cos(a) * 9);
-  camera.lookAt(P.x, P.y + 1.0, P.z - 6); camera.fov = 58; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+  const a = 2.6 + Math.sin(t * 0.2) * 0.4, r = 5.6 - Math.cos(t * 0.2) * 0.6;
+  camera.position.set(P.x + Math.sin(a) * r, P.y + 0.9 + Math.sin(t * 0.13) * 0.3, P.z + Math.cos(a) * r);
+  camera.lookAt(P.x - 1.2, P.y + 1.7, P.z); camera.fov = 46; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
 }

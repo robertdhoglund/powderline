@@ -1,5 +1,46 @@
 # Changes and handoffs
 
+## v0.11 | 2026-11-15 | Claude
+
+A new look for the whole game, aimed at the neon, graphic style of Sayonara Wild Hearts: clean shapes, three tones of light, coloured rim light, and trim that glows. The hero is rebuilt in violet with white hair. The palettes and the light of each mountain are unchanged.
+
+**Changed**
+
+- **One stylised material for everything built** (`toon` and `stylize` in `src/build.js`). Light falls in three soft-edged tones instead of a smooth gradient. Every silhouette picks up a rim of sun colour on the lit side and a cool fill on the dark side, both taken from the mountain's palette. Any colour above 1.0 glows. The physically based materials, the procedural normal maps (weave, leather, needles, wood) and the per-object sky reflections from v0.10 are gone; only the snow still reads the sky map.
+- **The rider is a new character with the same outline.** Still a belted tunic, pointed ears, tall boots, bow and quiver, but:
+  - Violet tunic with a lighter front panel, a short hooded mantle, pale full sleeves, indigo leggings, dark gloves and bracers.
+  - A white mane: broad flat blades in three rows curled round the head, a fringe, two wind-blown spikes, and a tail of hair that streams behind. The hair is slightly brighter than white so it stays white in warm light.
+  - Trim is light, not texture: magenta hem, mantle edge and bracer rings; cyan boot rings, belt stone, circlet, bow tips, bowstring and quiver arrows.
+  - Longer legs and a slimmer body. The face is redrawn with violet-to-cyan eyes and white brows.
+  - The board is dark with a violet inlay, a magenta centre line and a lit cyan edge all the way round.
+  - Two scarf tails run magenta to violet. They and the hair tail are separate dragged chains, so they whip across on every carve.
+- **Light trails.** The tail of the board lays down two lines of light, each a soft band with a bright core. They brighten with speed and change colour with flow: cyan at x1, magenta by x4, gold by x7. They follow the board through the air, so spins and flips draw arcs.
+- **Trees.** Three to five bold faceted tiers, each a star-shaped skirt of dark boughs, lit at the rim and dark under the tier above, with a cap of snow whose edge follows the boughs. Flat-shaded. The near-camera dissolve uses an even screen-door pattern instead of noise.
+- **Rocks.** Three shapes (boulder, leaning slab, tall shard), faceted, stone in a two-colour gradient, snow on the upper faces. A level can set `rock: [dark, light]`.
+- **Goblins rebuilt.** Pear-shaped body in a belted kilt and vest with a fur collar, wide head, long flat ears, slanted glowing eyes, a helmet with a lit band, small pauldrons, a target shield with a glowing boss. The lantern balloon is a proper lantern shape.
+- **Camera.** A little closer and lower in play (`camDist` 5.2 to 4.7, `camHeight` 2.15 to 2.05). The title screen now arcs round the front of the rider, who looks at the camera.
+- **Smaller things.** The sky map refreshes every 8 seconds instead of 4. `?hq` in the address pins the resolution (for screenshots and benchmarks). `merge(parts, true)` flat-shades a model; a part's geometry can carry its own colour gradient. Ribbons take a tip colour and a taper.
+
+**Tested**
+
+- `npm run check` and `npm test` pass (the test rides Norway). The same autopilot run finishes Japan, France and Alaska with no console errors; the test's minimum gate and ice counts are set for Norway and do not fit Japan (3 ice panels) or Alaska (9 gates), in this version or the last.
+- Reviewed in screenshots: play frames on all four mountains, a carve, two jumps, rider close-ups from behind, the side and the front, the three goblin kinds, the title, base camp, HUD and finish screens.
+- **Not tested on real hardware.** Everything was rendered in a headless software renderer, so frame rate on a laptop or a phone is unmeasured. The new materials are simpler than v0.10's, so it should not be slower, but that is an expectation, not a measurement.
+- **Not tested by hand.** No person has played this build; touch controls were not exercised.
+
+**Known issues**
+
+- Cabins, towers, gates and other props take the new material but keep their old shapes.
+- The scarves, hair tail and light trails are flat strips that face the camera. They read well in play; very close up they look like paper.
+- The lantern balloon's paper gores do not show: it reads as one glowing colour.
+- The sky was not redesigned. In play the camera looks down the slope and shows little of it.
+
+**Best next action**
+
+Play it on the phone and the laptop and note the frame rate. Then decide whether the rider needs real cloth (a cape) and whether the props deserve the same rebuild the goblins got.
+
+---
+
 ## v0.10 | 2026-11-15 | Claude
 
 Physically based rendering, a Link-style ranger rebuilt at that quality, and air tricks that count toward the verdict. The flat ink look from v0.9 is retired.

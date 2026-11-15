@@ -1,4 +1,4 @@
-# POWDERLINE (v0.10)
+# POWDERLINE (v0.11)
 
 A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 
@@ -50,14 +50,14 @@ src/course.js       turns a level into terrain and features, one recipe per kind
 src/lobby.js        base camp, upgrades shop, end-of-run scoring
 src/upgrades.js     what the shop sells
 src/store.js        saved coins, upgrades and best ranks
-src/world.js        renderer, bloom, sky, light palette, terrain mesh, trees
-src/player.js       carve physics, air and landings, the posed rider, scarf
+src/world.js        renderer, bloom, sky, light palette, terrain mesh, trees, rocks
+src/player.js       carve physics, air and landings, the posed rider, scarves, light trails
 src/camera.js       chase camera
 src/snow.js         powder spray, the trench, speed-line flakes
 src/bow.js          draw, focus, aim solve, arrows
 src/targets.js      goblins (tower lookouts, balloon goblins, sled raiders) and gates
 src/props.js        watchtowers, torches, pennants
-src/build.js        small kit for building merged low-poly models
+src/build.js        the shared stylised material, and a small kit for building merged low-poly models
 src/ice.js          pre-fractured ice sheets and walls
 src/fx.js           debris, shockwaves, ribbons, hit-stop, shake
 src/hud.js          score, flow, reticle, screens

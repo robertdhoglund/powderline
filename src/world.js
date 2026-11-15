@@ -8,7 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { clamp, lerp, rng } from './util.js';
 import { height, cx, widthAt, slopeAt, trees, D_MIN, D_MAX, FINISH } from './course.js';
 import { LEVEL } from './levels.js';
-import { part, merge, cyl } from './build.js';
+import { part, merge, cyl, toon, LOOK } from './build.js';
 
 export const TOUCH = matchMedia('(pointer: coarse)').matches;
 export const scene = new THREE.Scene();
@@ -63,7 +63,9 @@ window.addEventListener('resize', resize);
 
 // Drop resolution automatically on slow machines so the ride stays smooth.
 let slowFrames = 0, frames = 0;
+const HQ = new URLSearchParams(location.search).has('hq');   // ?hq pins the resolution (screenshots, benchmarks)
 export function watchPerformance(rdt) {
+  if (HQ) return;
   frames++; if (rdt > 0.024) slowFrames++;
   if (frames >= 90) {
     if (slowFrames > 55 && pixelRatio > 0.6) { pixelRatio = Math.max(0.6, pixelRatio - 0.25); resize(); }
@@ -98,34 +100,6 @@ sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.06;
 scene.add(hemi, sun, sun.target);
 export function sunFocus(p) { sun.target.position.copy(p); sun.position.copy(p).addScaledVector(sunDir, 110); sun.target.updateMatrixWorld(); }
 scene.fog = new THREE.FogExp2(0xffffff, LEVEL.fog || 0.0027);
-
-// Rim light: every lit surface picks up the low sun along its silhouette.
-// Materials are physically based: they are lit by the sun, by shadows, and by the sky itself (see the environment map below).
-// rim() and cel() are kept as names from the older looks; both now return plain physically based materials.
-export function rim(material) { return material; }
-export const RAMP = null;
-export const cel = (params) => new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, ...params });
-
-// Small procedural texture kit: tiling normal maps drawn on a canvas, so cloth has a weave and leather a grain.
-export function normalMapFrom(heightFn, size = 128, strength = 2, repeat = 4) {
-  const h = new Float32Array(size * size);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) h[y * size + x] = heightFn(x / size, y / size);
-  const cv = document.createElement('canvas'); cv.width = cv.height = size; const g = cv.getContext('2d'), img = g.createImageData(size, size);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const l = h[y * size + (x + size - 1) % size], r = h[y * size + (x + 1) % size], u = h[((y + size - 1) % size) * size + x], d = h[((y + 1) % size) * size + x];
-    let nx = (l - r) * strength, ny = (u - d) * strength, nz = 1; const k = 1 / Math.hypot(nx, ny, nz), i = (y * size + x) * 4;
-    img.data[i] = (nx * k * 0.5 + 0.5) * 255; img.data[i + 1] = (ny * k * 0.5 + 0.5) * 255; img.data[i + 2] = (nz * k * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.anisotropy = 4; return t;
-}
-const hsh = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
-export const TEX = {
-  weave: normalMapFrom((u, v) => Math.sin(u * 6.2832 * 24) * 0.5 + Math.sin(v * 6.2832 * 24) * 0.5 + hsh(Math.floor(u * 64), Math.floor(v * 64)) * 0.3, 128, 1.6, 6),
-  leather: normalMapFrom((u, v) => { let m = 9; for (let i = 0; i < 9; i++) { const cx0 = hsh(i, 3) , cy0 = hsh(i, 7); for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) m = Math.min(m, Math.hypot(u - cx0 - ox, v - cy0 - oy)); } return Math.min(1, m * 5); }, 128, 3.5, 5),
-  needles: normalMapFrom((u, v) => Math.sin((u * 3 + v) * 6.2832 * 9) * 0.6 + hsh(Math.floor(u * 48), Math.floor(v * 48)) * 0.9, 128, 2.2, 3),
-  wood: normalMapFrom((u, v) => Math.sin(u * 6.2832 * 14 + Math.sin(v * 6.2832 * 2) * 1.5) * 0.7 + hsh(Math.floor(u * 90), Math.floor(v * 6)) * 0.5, 128, 2.2, 2),
-};
 
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
@@ -171,7 +145,7 @@ const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
 envScene.add(new THREE.Mesh(sky.geometry, skyMat));
 let envRT = null, envAt = -99;
 function refreshEnv(time) {
-  if (time - envAt < 4) return; envAt = time;
+  if (time - envAt < 8) return; envAt = time;
   const rt = pmrem.fromScene(envScene, 0, 1, 5000, { size: 64 }); if (envRT) envRT.dispose(); envRT = rt; scene.environment = rt.texture;
 }
 scene.environmentIntensity = 0.9;
@@ -283,30 +257,43 @@ const shadowTex = (() => {
   cullers.push((d) => { const r0 = clamp(Math.floor((d - 110 - D_MIN) / rowStep), 0, rows), r1 = clamp(Math.ceil((d + VIEW - D_MIN) / rowStep), 0, rows); geo.setDrawRange(r0 * cols * 6, (r1 - r0) * cols * 6); });
 }
 
-// ---- trees: layered, snow-laden firs --------------------------------------------------------
-// Firs: many thin drooping skirts of needles, each carrying a shelf of snow, with wavy rims so no two tiers line up.
-function firGeometry(tiers, girth, height0, seed) {
-  const r = rng(seed), body = new THREE.Color(LEVEL.tree ? LEVEL.tree[0] : '#1f3f66'), body2 = new THREE.Color(LEVEL.tree ? LEVEL.tree[1] : '#2c5f7c');
-  const parts = [part(cyl(0.2, 0.32, 2.8, 8), '#2a1c18', [0, 1.3, 0])];
-  const skirt = (rad, h, wav, ph) => { const g = new THREE.ConeGeometry(rad, h, 14, 3, true), p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) { const y = p.getY(i), k = 1 - (y + h / 2) / h, a = Math.atan2(p.getZ(i), p.getX(i)), w = 1 + Math.sin(a * 3 + ph) * wav * k; p.setXYZ(i, p.getX(i) * w, y - k * k * h * 0.2, p.getZ(i) * w); }
-    g.computeVertexNormals(); return g; };
-  let y = 1.9;
+// ---- trees: graphic firs --------------------------------------------------------------------
+// A few bold tiers, each a faceted skirt of dark boughs with a jagged cap of snow lying on it. The rim of every
+// tier is a star (alternate points pushed out and pulled in), so the silhouette is spiky and no two tiers line up.
+function firGeometry(tiers, girth, tall, seed) {
+  const r = rng(seed), low = new THREE.Color(LEVEL.tree ? LEVEL.tree[0] : '#1b2a66'), high = new THREE.Color(LEVEL.tree ? LEVEL.tree[1] : '#2f6f8e');
+  const parts = [part(cyl(0.16, 0.3, 2.6, 6), '#241a3a', [0, 1.1, 0])];
+  // tone: brightness at the rim and at the apex, so each tier is lit at its skirt and dark under the tier above
+  const skirt = (rad, h, sides, star, droop, ph, rimTone, topTone) => {
+    const g = new THREE.ConeGeometry(rad, h, sides, 1, true), p = g.attributes.position, col = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) {
+      const top = p.getY(i) > 0, tone = top ? topTone : rimTone; col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = tone;
+      if (top) continue;
+      const a = Math.atan2(p.getZ(i), p.getX(i)), out = Math.round((a + Math.PI) / (Math.PI * 2) * sides) % 2, w = (out ? 1 + star : 1 - star * 0.6) * (1 + Math.sin(a * 2 + ph) * 0.07);
+      p.setXYZ(i, p.getX(i) * w, p.getY(i) - (out ? droop : 0) * h, p.getZ(i) * w);
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3)); return g;
+  };
+  let y = 1.5;
   for (let t = 0; t < tiers; t++) {
-    const k = t / (tiers - 1), rad = lerp(3.0, 0.7, Math.pow(k, 0.8)) * girth, h = lerp(2.9, 2.0, k) * height0, ph = r() * 6.28, c = body.clone().lerp(body2, r() * 0.9);
-    parts.push(part(skirt(rad, h, 0.07, ph), c, [0, y + h / 2, 0]));
-    parts.push(part(skirt(rad * 0.74, h * 0.74, 0.07, ph), [0.93, 0.95, 1.0], [0, y + h * 0.63 + 0.16, 0]));   // same slope as the bough, lifted clear of it
-    y += h * 0.42;
+    const k = t / (tiers - 1), rad = lerp(3.1, 1.0, Math.pow(k, 0.85)) * girth, h = lerp(3.7, 2.7, k) * tall, ph = r() * 6.28, sides = t < tiers - 1 ? 10 : 8, rot = r() * 6.28;
+    const c = low.clone().lerp(high, 0.1 + k * 0.5 + r() * 0.2);
+    parts.push(part(skirt(rad, h, sides, 0.17, 0.1, ph, 1.5, 0.55), c, [0, y + h / 2, 0], [0, rot, 0]));
+    // snow: the same star, shrunk toward the tip and held just clear of the boughs, so its edge follows theirs
+    const q = 0.66 + r() * 0.1;
+    parts.push(part(skirt(rad * q * 1.1, h * q, sides, 0.17, 0.1, ph, 0.86, 1.04), [0.96, 0.95, 1.06], [0, y + h - h * q / 2 + 0.12, 0], [0, rot, 0]));
+    y += h * 0.5;
   }
-  return merge(parts);
+  return merge(parts, true);
 }
 {
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, normalMap: TEX.needles, normalScale: new THREE.Vector2(0.35, 0.35), side: THREE.DoubleSide });
+  const mat = toon(0, 0, null, { rim: 1.25, side: THREE.DoubleSide });
   // Trees dissolve when they come between the camera and the rider, so the view is never blocked.
-  mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-    if (fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) > smoothstep(5.0, 12.0, length(vViewPosition))) discard;`); };
+  const look = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, rr) => { look(sh, rr); sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+    if (fract(52.9829189 * fract(dot(floor(gl_FragCoord.xy), vec2(0.06711056, 0.00583715)))) > smoothstep(4.0, 10.0, length(vViewPosition))) discard;   // an even screen-door pattern, not noise`); };
   mat.customProgramCacheKey = () => 'treeFade';
-  const kinds = [firGeometry(6, 1.0, 1.0, 3), firGeometry(7, 0.72, 1.12, 5), firGeometry(5, 1.2, 1.0, 9)];
+  const kinds = [firGeometry(4, 1.0, 1.0, 3), firGeometry(5, 0.74, 1.08, 5), firGeometry(3, 1.18, 1.05, 9)];
   const groups = new Map(), KINDS = LEVEL.kinds || [0, 1, 2];
   trees.forEach((t, i) => { const key = chunkOf(-t.z) * 3 + KINDS[i % KINDS.length]; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); });
   const o = new THREE.Object3D(), c = new THREE.Color();
@@ -314,35 +301,40 @@ function firGeometry(tiers, girth, height0, seed) {
     const m = new THREE.InstancedMesh(kinds[key % 3], mat, list.length);
     list.forEach((t, i) => {
       o.position.set(t.x, height(t.x, t.z) - 0.5, t.z); o.rotation.set((t.tint - 0.5) * 0.1, t.rot, (t.rot % 1 - 0.5) * 0.08);
-      o.scale.set(t.s, t.s * (0.85 + t.tint * 0.4), t.s); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, c.setScalar(0.8 + t.tint * 0.45));
+      o.scale.set(t.s, t.s * (0.85 + t.tint * 0.4), t.s); o.updateMatrix(); m.setMatrixAt(i, o.matrix); m.setColorAt(i, c.setScalar(0.85 + t.tint * 0.3));
     });
     chunked(m, Math.floor(key / 3));
   }
 }
 
-// ---- rocks: dark outcrops with snow on top, thickest on the steep pitches --------------------
+// ---- rocks: faceted outcrops, snow on every face that looks up ------------------------------
 {
-  const r = rng(303), geo = new THREE.IcosahedronGeometry(1, 2), p = geo.attributes.position, col = [];
-  const hsh = (x, y, z) => { const s = Math.sin(x * 12.9 + y * 78.2 + z * 37.7) * 43758.5; return s - Math.floor(s); };
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 0.62 + hsh(x, y, z) * 0.6;
-    p.setXYZ(i, x * k * 1.25, y * k * 0.8, z * k);
-  }
-  const A = new THREE.Vector3(), B = new THREE.Vector3(), Cc = new THREE.Vector3(), stone = new THREE.Color('#1b1748'), snow = new THREE.Color('#d8d2ff');
-  for (let i = 0; i < p.count; i += 3) {
-    A.fromBufferAttribute(p, i); B.fromBufferAttribute(p, i + 1); Cc.fromBufferAttribute(p, i + 2);
-    const ny = B.sub(A).cross(Cc.sub(A)).normalize().y, c = ny > 0.5 ? snow : stone;
-    for (let j = 0; j < 3; j++) col.push(c.r, c.g, c.b);
-  }
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  const N = LEVEL.rocks || 560, mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, normalMap: TEX.leather }), o = new THREE.Object3D(), lists = new Map();
+  const r = rng(303), hsh = (x, y, z) => { const v = Math.sin(x * 12.9 + y * 78.2 + z * 37.7) * 43758.5; return v - Math.floor(v); };
+  const stone = new THREE.Color(LEVEL.rock ? LEVEL.rock[0] : '#231c5c'), stone2 = new THREE.Color(LEVEL.rock ? LEVEL.rock[1] : '#4a3c96'), snowC = new THREE.Color(0.95, 0.94, 1.05), A = new THREE.Vector3(), B = new THREE.Vector3(), Cc = new THREE.Vector3(), c = new THREE.Color();
+  // Three shapes: a squat boulder, a leaning slab, a tall shard.
+  const rockGeometry = (seed, sx, sy, sz, lean) => {
+    const geo = new THREE.IcosahedronGeometry(1, 1), p = geo.attributes.position, col = [];
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 0.7 + hsh(x + seed, y, z) * 0.55, yy = y * k * sy;
+      p.setXYZ(i, x * k * sx + yy * lean, yy, z * k * sz);
+    }
+    for (let i = 0; i < p.count; i += 3) {
+      A.fromBufferAttribute(p, i); B.fromBufferAttribute(p, i + 1); Cc.fromBufferAttribute(p, i + 2);
+      const cy = (A.y + B.y + Cc.y) / 3, ny = B.sub(A).cross(Cc.sub(A)).normalize().y;
+      if (ny > 0.3 && cy > -0.1 * sy) c.copy(snowC); else c.copy(stone).lerp(stone2, clamp(cy / sy * 0.6 + 0.4 + (hsh(cy, ny, seed) - 0.5) * 0.3, 0, 1));
+      for (let j = 0; j < 3; j++) col.push(c.r, c.g, c.b);
+    }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.computeVertexNormals(); return geo;
+  };
+  const geos = [rockGeometry(1, 1.25, 0.8, 1.0, 0), rockGeometry(2, 1.0, 1.15, 0.8, 0.3), rockGeometry(3, 0.7, 1.7, 0.75, -0.18)];
+  const N = LEVEL.rocks || 560, mat = toon(0, 0, null, { rim: 1.5 }), o = new THREE.Object3D(), lists = new Map();
   for (let i = 0; i < N; i++) {
     let d = 0; for (let tries = 0; tries < 6; tries++) { d = D_MIN + 30 + r() * (D_MAX - D_MIN - 60); if (r() < slopeAt(d) * 0.9) break; }
-    const steep = slopeAt(d), a = 3.5 + Math.pow(r(), 1.4) * 40, x = cx(d) + (r() < 0.5 ? -1 : 1) * (widthAt(d) + a), z = -d, s = (1.2 + r() * 2.6) * (1 + steep) * (0.7 + a * 0.02);
-    o.position.set(x, height(x, z) - s * 0.15, z); o.rotation.set(r() * 0.5, r() * 6.283, r() * 0.5); o.scale.set(s, s * (0.7 + r() * 0.9), s); o.updateMatrix();
-    const c = chunkOf(d); if (!lists.has(c)) lists.set(c, []); lists.get(c).push(o.matrix.clone());
+    const steep = slopeAt(d), a = 3.5 + Math.pow(r(), 1.4) * 40, x = cx(d) + (r() < 0.5 ? -1 : 1) * (widthAt(d) + a), z = -d, s = (1.1 + r() * 2.2) * (1 + steep * 0.8) * (0.7 + a * 0.02);
+    o.position.set(x, height(x, z) - s * 0.2, z); o.rotation.set((r() - 0.5) * 0.4, r() * 6.283, (r() - 0.5) * 0.4); o.scale.set(s, s * (0.75 + r() * 0.7), s); o.updateMatrix();
+    const key = chunkOf(d) * 3 + (i % 3); if (!lists.has(key)) lists.set(key, []); lists.get(key).push(o.matrix.clone());
   }
-  for (const [c, list] of lists) { const m = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((mx, i) => m.setMatrixAt(i, mx)); chunked(m, c); }
+  for (const [key, list] of lists) { const m = new THREE.InstancedMesh(geos[key % 3], mat, list.length); list.forEach((mx, i) => m.setMatrixAt(i, mx)); chunked(m, Math.floor(key / 3)); }
 }
 
 // One far landmark per country, painted into the backdrop.
@@ -373,6 +365,7 @@ export function updateWorld(d, time, speed = 0) {
   skyMat.uniforms.uStars.value = pal.stars; skyMat.uniforms.uAurora.value = pal.aurora; skyMat.uniforms.uTime.value = time;
   refreshEnv(time);
   sunView.copy(sunDir).transformDirection(camera.matrixWorldInverse);
+  LOOK.uSunView.value.copy(sunView); LOOK.uRim.value.copy(pal.light).lerp(pal.halo, 0.35).multiplyScalar(0.85 * pal.gain); LOOK.uFill.value.copy(pal.sky).lerp(pal.top, 0.3).multiplyScalar(pal.gain);
   sky.position.copy(camera.position);
   ridges.forEach((m, l) => {
     m.position.set(camera.position.x, camera.position.y - 70, camera.position.z);

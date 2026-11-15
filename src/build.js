@@ -15,29 +15,57 @@ export function place(parts, p = [0, 0, 0], r = [0, 0, 0], s = 1) {
   const M = new THREE.Matrix4().compose(_p.set(...p), _q.setFromEuler(_e.set(...r)), _s.setScalar(s));
   return parts.map((x) => ({ ...x, pre: x.pre ? M.clone().multiply(x.pre) : M.clone() }));
 }
-export function merge(parts) {
+// merge(parts, flat): flat gives every face its own normal (faceted, low-poly shading). A geometry that already
+// carries a 'color' attribute keeps it, multiplied by the part's colour, so shapes can have gradients.
+export function merge(parts, flat = false) {
   const pos = [], nor = [], col = [], uv = [];
   for (const x of parts) {
     const g = x.g.index ? x.g.toNonIndexed() : x.g.clone();
     _m.compose(_p.set(...x.p), _q.setFromEuler(_e.set(...x.r)), _s.set(...x.s)); if (x.pre) _m.premultiply(x.pre);
     g.applyMatrix4(_m);
     _c.set(x.c instanceof THREE.Color ? x.c : new THREE.Color(Array.isArray(x.c) ? 0 : x.c)); if (Array.isArray(x.c)) _c.setRGB(...x.c);
-    const P = g.attributes.position, Nn = g.attributes.normal, U = g.attributes.uv;
-    for (let i = 0; i < P.count; i++) { pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(Nn.getX(i), Nn.getY(i), Nn.getZ(i)); col.push(_c.r, _c.g, _c.b); if (U) uv.push(U.getX(i), U.getY(i)); else uv.push(0, 0); }
+    const P = g.attributes.position, Nn = g.attributes.normal, U = g.attributes.uv, K = g.attributes.color;
+    for (let i = 0; i < P.count; i++) {
+      pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(Nn.getX(i), Nn.getY(i), Nn.getZ(i));
+      if (K) col.push(_c.r * K.getX(i), _c.g * K.getY(i), _c.b * K.getZ(i)); else col.push(_c.r, _c.g, _c.b);
+      if (U) uv.push(U.getX(i), U.getY(i)); else uv.push(0, 0);
+    }
   }
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  if (flat) out.computeVertexNormals();
   return out;
 }
-// Lit, rim-lit, vertex-coloured material. Any vertex colour above 1.0 is treated as its own light.
-// The shared material for built models: physically based, coloured by vertices (or one colour). Any colour
-// above 1.0 is treated as its own light, so lantern glass, eyes and flames glow. opts adds maps or changes roughness.
-export function toon(_rim = 0, _lift = 0, color = null, opts = {}) {
-  const m = new THREE.MeshStandardMaterial({ roughness: 0.74, metalness: 0, ...(color ? { color } : { vertexColors: true }), ...opts });
-  const src = color ? 'diffuseColor.rgb' : 'vColor.rgb';
-  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n totalEmissiveRadiance += max(${src} - 1.0, 0.0) * 1.7;`); };
-  m.customProgramCacheKey = () => `pbr${color ? 'c' : 'v'}`;
+// ---- the look ------------------------------------------------------------------------------
+// One stylised material for everything that is built: three soft-edged tones of light instead of a smooth falloff,
+// a rim of sun colour along the silhouette on the lit side and a cool fill on the dark side, and glow for any colour
+// above 1.0 (lantern glass, eyes, flames, trim). world.js keeps LOOK in step with the palette every frame.
+export const LOOK = { uRim: { value: new THREE.Color(1, 0.75, 0.8) }, uFill: { value: new THREE.Color(0.35, 0.4, 1) }, uSunView: { value: new THREE.Vector3(0, 0.3, -1) } };
+const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+function rampTexture(shadow, mid) {
+  const n = 128, d = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) { const x = i / (n - 1), v = shadow + (mid - shadow) * ss(0.485, 0.525, x) + (1 - mid) * ss(0.78, 0.83, x); d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = Math.round(v * 255); d[i * 4 + 3] = 255; }
+  const t = new THREE.DataTexture(d, n, 1); t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+}
+export const RAMP = rampTexture(0.34, 0.8), RAMP_SOFT = rampTexture(0.5, 0.86);
+// Adds the rim, the fill and the glow to a material. rim scales the edge light; src is where its base colour comes from.
+export function stylize(m, rim = 1, src = m.vertexColors ? 'vColor.rgb' : 'diffuseColor.rgb') {
+  const before = m.onBeforeCompile, key = m.customProgramCacheKey ? m.customProgramCacheKey() : '';
+  m.onBeforeCompile = (sh, r) => {
+    if (before) before(sh, r);
+    Object.assign(sh.uniforms, LOOK);
+    sh.fragmentShader = 'uniform vec3 uRim, uFill, uSunView;\n' + sh.fragmentShader
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n totalEmissiveRadiance += max(${src} - 1.0, 0.0) * 1.7;`)
+      .replace('#include <opaque_fragment>', `{ float fr = pow(1.0 - saturate(dot(normalize(vViewPosition), normal)), 2.4), toSun = saturate(dot(normal, uSunView) * 0.6 + 0.5);
+          outgoingLight += (uRim * toSun * toSun + uFill * (1.0 - toSun) * 0.4) * fr * ${rim.toFixed(2)}; }
+        #include <opaque_fragment>`);
+  };
+  m.customProgramCacheKey = () => `look|${key}|${rim.toFixed(2)}|${src}`;
   return m;
+}
+// The shared material for built models, coloured by vertices (or by one colour). opts: rim, soft (gentler shadow tone), flatShading, side...
+export function toon(_rim = 0, _lift = 0, color = null, { rim = 1, soft = false, flatShading, ...opts } = {}) {   // flat shading comes from the geometry (see merge)
+  return stylize(new THREE.MeshToonMaterial({ gradientMap: soft ? RAMP_SOFT : RAMP, ...(color ? { color } : { vertexColors: true }), ...opts }), rim);
 }
 
 // Ink outline: a slightly swollen, back-facing copy drawn in one dark colour. Gives figures a drawn edge.
@@ -48,7 +76,7 @@ export const ink = new THREE.ShaderMaterial({
   fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor = vec4(uCol, 1.0); }`,
 });
 export function outline(root) {
-  const list = []; root.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) list.push(o); });
+  const list = []; root.traverse((o) => { if (o.isMesh && (o.material.isMeshToonMaterial || o.material.isMeshStandardMaterial)) list.push(o); });
   for (const o of list) { const m = new THREE.Mesh(o.geometry, ink); m.frustumCulled = false; o.add(m); }
 }
 

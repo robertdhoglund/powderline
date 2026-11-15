@@ -86,9 +86,18 @@ Steering and aiming simultaneously may be too demanding. Keep the start easy. Th
 - **Progression.** Coins, upgrades and four mountains with their own scenery, light and layout.
 - **Fail-soft still holds.** Snowballs cost speed and flow, never the run.
 
-## Art direction since v0.10
+## Art direction since v0.11
 
-Physically based and lit by the sky: real materials (cloth, leather, metal, snow) with procedural surface detail, soft light, restrained bloom. The hero is a Link-style ranger of our own design. The flat ink look tried in v0.9 was dropped.
+Graphic and luminous, in the spirit of Sayonara Wild Hearts but with our own shapes and palette:
+
+- **Shape first.** Faceted trees and rocks, clean lofted volumes for characters. No surface textures.
+- **Three tones of light.** Shadow, mid and lit, with soft edges. A rim of sun colour on every silhouette.
+- **Detail is light.** Trim, eyes, lanterns and trails glow; bloom carries them. Nothing is detailed with texture.
+- **Colour comes from the mountain.** Each level's palette drives sky, snow, rim light and fog. Accents are magenta and cyan.
+- **The hero** is a moonlit ranger of our own design: the classic adventurer's outline (tunic, pointed ears, bow, quiver) in violet, with a white mane and glowing trim. Not green, not red.
+- **Motion draws lines.** Scarves, hair and board trails are ribbons; the trails change colour with flow.
+
+The physically based look of v0.10 and the flat ink look of v0.9 were both dropped.
 
 ## Deferred on purpose
 

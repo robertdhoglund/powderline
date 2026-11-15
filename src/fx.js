@@ -46,8 +46,9 @@ export function ring(pos, color, size = 6, life = 0.4) {
 
 // ---- ribbon: a camera-facing strip through a list of points (scarf, arrow trails) --------
 export class Ribbon {
-  constructor(n, width, color, additive = false) {
-    this.n = n; this.width = width;
+  // tip: colour at the tail end (defaults to the head colour). taper: how much the width narrows toward the tail (0..1).
+  constructor(n, width, color, additive = false, tip = null, taper = 0.85) {
+    this.n = n; this.width = width; this.taper = taper;
     this.pos = new Float32Array(n * 6); this.col = new Float32Array(n * 6);
     const idx = [];
     for (let i = 0; i < n - 1; i++) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
@@ -55,7 +56,7 @@ export class Ribbon {
     g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute('color', new THREE.BufferAttribute(this.col, 3).setUsage(THREE.DynamicDrawUsage));
     g.setIndex(idx);
-    this.color = new THREE.Color(color);
+    this.color = new THREE.Color(color); this.tip = new THREE.Color(tip === null ? color : tip);
     this.mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: additive, depthWrite: !additive, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, fog: false }));
     this.mesh.frustumCulled = false; scene.add(this.mesh);
   }
@@ -66,10 +67,11 @@ export class Ribbon {
       const p = pts[i], q = pts[Math.min(n - 1, i + 1)], o = pts[Math.max(0, i - 1)];
       a.subVectors(q, o); b.subVectors(camera.position, p); s.crossVectors(a, b);
       const len = s.length(); if (len > 1e-6) s.multiplyScalar(1 / len); else s.set(1, 0, 0);
-      const t = i / (n - 1), w = this.width * (1 - t * 0.85) * 0.5, k = i * 6, c = gain * (1 - fade * t);
+      const t = i / (n - 1), w = this.width * (1 - t * this.taper) * 0.5, k = i * 6, c = gain * (1 - fade * t);
+      const cr = this.color.r + (this.tip.r - this.color.r) * t, cg = this.color.g + (this.tip.g - this.color.g) * t, cb = this.color.b + (this.tip.b - this.color.b) * t;
       this.pos[k] = p.x + s.x * w; this.pos[k + 1] = p.y + s.y * w; this.pos[k + 2] = p.z + s.z * w;
       this.pos[k + 3] = p.x - s.x * w; this.pos[k + 4] = p.y - s.y * w; this.pos[k + 5] = p.z - s.z * w;
-      for (let j = 0; j < 6; j += 3) { this.col[k + j] = this.color.r * c; this.col[k + j + 1] = this.color.g * c; this.col[k + j + 2] = this.color.b * c; }
+      for (let j = 0; j < 6; j += 3) { this.col[k + j] = cr * c; this.col[k + j + 1] = cg * c; this.col[k + j + 2] = cb * c; }
     }
     this.mesh.geometry.attributes.position.needsUpdate = true; this.mesh.geometry.attributes.color.needsUpdate = true;
   }
