@@ -79,6 +79,13 @@ Steering and aiming simultaneously may be too demanding. Keep the start easy. Th
 - **The hero is an original ranger-archer.** Inspired by classic adventure heroes, but not a copy of any one of them.
 - **The course turns.** Each section has its own turn strength, steepness and width.
 
+## Decisions made in v0.5 and v0.6
+
+- **Rank is goblins, gates and speed.** A is meant to be hard.
+- **Slow motion is opt-in.** Quick shots are real time; you hold to focus. Slowing every shot broke the flow.
+- **Progression.** Coins, upgrades and four mountains with their own scenery, light and layout.
+- **Fail-soft still holds.** Snowballs cost speed and flow, never the run.
+
 ## Deferred on purpose
 
 Longer and additional levels, music and richer sound, tricks, touch and gamepad controls.

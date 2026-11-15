@@ -8,7 +8,7 @@ const $ = (id) => document.getElementById(id);
 const el = { hud: $('hud'), score: $('score'), flow: $('flow'), flowFill: $('flowFill'), pop: $('pop'), prog: $('progFill'), speed: $('speed'),
   reticle: $('reticle'), focus: $('focusArc'), overlay: $('overlay'), flash: $('flash'), kicker: $('kicker'), title: $('title'), tag: $('tagline'),
   start: $('start'), frost: $('frost'), shield: $('shield'), stats: $('stats'), help: $('help') };
-let shown = -1, popT = 0;
+let shown = -1, popT = 0, tally = '';
 
 // Every scoring event raises the flow multiplier. Flow fades if you stop making things happen.
 export function award(points, label) {
@@ -34,14 +34,15 @@ export function updateHud(P, rdt) {
   if (popT > 0) { popT -= rdt; if (popT <= 0) el.pop.classList.remove('show'); }
   // snowball frost on the lens, shield count
   if (G.frost > 0) G.frost = Math.max(0, G.frost - rdt * 0.6); el.frost.style.opacity = G.frost;
+  const tl = `GOBLINS <b>${G.stats.kills}</b>/${G.totals.targets} · GATES <b>${G.stats.gates}</b>/${G.totals.gates}`; if (tl !== tally) { tally = tl; $('tally').innerHTML = tl; }
   el.shield.textContent = G.shield > 0 ? `SHIELD ${'◆'.repeat(G.shield)}` : '';
   // reticle
   const a = G.aim, r = el.reticle;
   r.style.transform = `translate(${G.input.px}px, ${G.input.py}px)`;
   r.style.setProperty('--gap', `${6 + (1 - a.draw) * 20 * (a.drawing ? 1 : 0.5)}px`);
-  r.classList.toggle('drawing', a.drawing); r.classList.toggle('full', a.drawing && a.draw >= 1); r.classList.toggle('lock', !!a.lock);
+  r.classList.toggle('drawing', a.drawing); r.classList.toggle('full', a.drawing && a.draw >= 1); r.classList.toggle('lock', !!a.lock); r.classList.toggle('focus', !!a.focusOn);
   el.focus.style.strokeDashoffset = String(113 * (1 - a.focus));
-  el.focus.style.opacity = a.focus < 0.999 || a.drawing ? 1 : 0;
+  el.focus.style.opacity = a.focus < 0.999 || a.focusOn ? 1 : 0;
 }
 
 export function showHud(on) { el.hud.classList.toggle('hidden', !on); el.reticle.classList.toggle('hidden', !on); document.body.classList.toggle('playing', on); }

@@ -23,10 +23,11 @@ export const T = {
   // Bow
   drawTime: 0.55,        // seconds of real time to full draw
   arrowSpeedMin: 58, arrowSpeedMax: 128, arrowGravity: 14,
-  focusGround: 0.55,     // time scale while aiming on snow
+  focusHold: 0.3,        // seconds held past full draw before slow motion starts
+  focusGround: 0.5,      // time scale while aiming on snow
   focusAir: 0.28,        // time scale while aiming in the air
   focusDrain: 0.42,      // focus used per real second of aiming
-  focusRegen: 0.22,
+  focusRegen: 0.3,
   assistAngle: 0.03,     // radians of aim magnetism around a target
 
   // Camera

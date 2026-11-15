@@ -165,8 +165,8 @@ const ridges = [];
 }
 
 const cullers = [], VIEW = 640, CHUNK = 160;
-const chunkOf = (d) => Math.floor((d - D_MIN) / CHUNK);
-function chunked(mesh, c) { mesh.frustumCulled = false; scene.add(mesh); const d0 = D_MIN + c * CHUNK; cullers.push((d) => { mesh.visible = d0 + CHUNK > d - 110 && d0 < d + VIEW; }); }
+export const chunkOf = (d) => Math.floor((d - D_MIN) / CHUNK);
+export function chunked(mesh, c) { mesh.frustumCulled = false; scene.add(mesh); const d0 = D_MIN + c * CHUNK; cullers.push((d) => { mesh.visible = d0 + CHUNK > d - 110 && d0 < d + VIEW; }); }
 
 // ---- long tree shadows, painted once into a map of the course ----------------------------
 const SH_W = 256, SH_H = 4096, U_SPAN = 128, D_SPAN = D_MAX - D_MIN;
@@ -278,8 +278,8 @@ function firGeometry(tiers, girth, seed) {
 {
   const mat = rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }), 0.3, 2.5);
   const kinds = [firGeometry(5, 1.0, 11), firGeometry(6, 0.72, 23), firGeometry(4, 1.15, 37)];
-  const groups = new Map();
-  trees.forEach((t, i) => { const key = chunkOf(-t.z) * 3 + (i % 3); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); });
+  const groups = new Map(), KINDS = LEVEL.kinds || [0, 1, 2];
+  trees.forEach((t, i) => { const key = chunkOf(-t.z) * 3 + KINDS[i % KINDS.length]; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); });
   const o = new THREE.Object3D(), c = new THREE.Color();
   for (const [key, list] of groups) {
     const m = new THREE.InstancedMesh(kinds[key % 3], mat, list.length);
@@ -316,6 +316,19 @@ function firGeometry(tiers, girth, seed) {
   for (const [c, list] of lists) { const m = new THREE.InstancedMesh(geo, mat, list.length); list.forEach((mx, i) => m.setMatrixAt(i, mx)); chunked(m, c); }
 }
 
+// One far landmark per country, painted into the backdrop.
+const landmark = new THREE.Group(), lmBody = new THREE.MeshBasicMaterial({ fog: false }), lmSnow = new THREE.MeshBasicMaterial({ fog: false });
+{
+  const peak = (x, z, rad, h, sides = 7, cap = 0.34) => {
+    const b = new THREE.Mesh(new THREE.ConeGeometry(rad, h, sides), lmBody); b.position.set(x, h / 2 - 260, z); b.rotation.y = x;
+    const c = new THREE.Mesh(new THREE.ConeGeometry(rad * cap * 1.04, h * cap, sides), lmSnow); c.position.set(x, h - h * cap / 2 - 258, z); c.rotation.y = x; landmark.add(b, c);
+  };
+  if (LEVEL.landmark === 'volcano') peak(-520, -2100, 760, 760, 18, 0.3);
+  if (LEVEL.landmark === 'needles') [[-700, 240, 900], [-520, 170, 1150], [-380, 210, 820], [520, 200, 1000], [690, 260, 780], [300, 150, 700]].forEach(([x, r, h]) => peak(x, -2000 - Math.abs(x) * 0.3, r, h, 5, 0.22));
+  if (LEVEL.landmark === 'spines') for (let i = 0; i < 9; i++) peak(-900 + i * 225 + (i % 2) * 60, -2100, 190, 620 + (i * 137) % 300, 6, 0.36);
+  if (LEVEL.landmark === 'horns') { peak(-420, -2000, 330, 780, 6, 0.3); peak(-150, -2050, 300, 900, 6, 0.3); peak(480, -2100, 420, 640, 6, 0.3); }
+  landmark.traverse((o) => { o.frustumCulled = false; o.renderOrder = -4.5; }); scene.add(landmark);
+}
 const _c = new THREE.Color(), BLACK = new THREE.Color(0);
 export function updateWorld(d, time, speed = 0) {
   for (const f of cullers) f(d);
@@ -335,6 +348,8 @@ export function updateWorld(d, time, speed = 0) {
     m.position.set(camera.position.x, camera.position.y - 70, camera.position.z);
     m.material.color.copy(pal.hor).lerp(pal.mid, 0.25 + l * 0.2).lerp(BLACK, 0.05 + l * 0.05);
   });
+  landmark.position.set(camera.position.x, camera.position.y, camera.position.z);
+  lmBody.color.copy(pal.hor).lerp(pal.mid, 0.5).lerp(BLACK, 0.12); lmSnow.color.copy(lmBody.color).lerp(_c.setScalar(1), 0.28);
   lens.uniforms.uSpeed.value = speed; lens.uniforms.uTime.value = time % 10;
   lens.uniforms.uTint.value.copy(pal.top).lerp(_c.setScalar(1), 0.35);
 }

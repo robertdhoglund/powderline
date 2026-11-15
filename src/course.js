@@ -36,7 +36,6 @@ const recipes = {
   slalom(s, n) { // gates swing around tree islands, lookouts on the edges
     const amp = Math.min(4.5, s.width - 4.8);
     slalom(s, 3, n - 3, 2, amp); gate(s, n - 1, 0);
-    if (s.width >= 10) for (let b = 6; b < n - 4; b += 4) island(s, b, (r0() - 0.5) * 3);
     let side = 1; for (let b = 4; b < n - 2; b += 4.5) { tower(s, b + r0(), side); side = -side; }
     for (let b = 7; b < n - 3; b += 5.5) balloon(s, b, (r0() - 0.5) * 5, 4.8 + r0());
     if (n >= 18) { pacer(s, n * 0.4); if (n >= 24) pacer(s, n * 0.75); }

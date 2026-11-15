@@ -20,6 +20,6 @@ export function resetState() {
   G.score = 0; G.flow = 1; G.flowT = 0;
   G.shield = 0; G.frost = 0;
   G.stats = { hits: 0, kills: 0, perfect: 0, ice: 0, gates: 0, maxAir: 0, bonks: 0, time: 0, bestFlow: 1 };
-  G.aim.blend = 0; G.aim.draw = 0; G.aim.drawing = false; G.aim.focus = 1; G.aim.lock = null;
+  G.aim.blend = 0; G.aim.zoom = 0; G.aim.focusOn = false; G.aim.hold = 0; G.aim.draw = 0; G.aim.drawing = false; G.aim.focus = 1; G.aim.lock = null;
 }
 resetState();

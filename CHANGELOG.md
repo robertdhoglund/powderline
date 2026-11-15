@@ -1,5 +1,40 @@
 # Changes and handoffs
 
+## v0.6 | 2026-11-15 | Claude
+
+Country scenery, opt-in slow motion, an inked look for the hero and goblins, and a soundtrack.
+
+**Changed**
+
+- **Slow motion is a choice.** A quick draw-and-release now happens in real time. Slow motion (and the zoom) starts only if you keep holding about a third of a second past full draw, hold right mouse or Shift, or draw in the middle of a real jump. The same hold works with a thumb, so touch plays the same way. `Q` cancels a draw (right click no longer does).
+- **Country scenery.**
+  - Norway: stone trolls with glowing eyes, red cabins, rune stones, twin horn peaks.
+  - Japan: torii to ride through instead of light arches, stone lanterns, cherry trees, bamboo, pagodas, a volcano on the horizon.
+  - France: chalets with tricolour flags, fences, red and blue race gates, gondola lines strung across the piste, granite needles on the horizon.
+  - Alaska: totem poles, log cabins, blue ice seracs, a bush plane on skis, fluted spines on the horizon.
+- **Ink outlines** on the hero and the goblins, for a drawn look.
+- **Hero.** A face (eyes, brows, nose, mouth), side locks, gold hem, collar, quiver strap, belt pouch, and a fuller cape with five columns of cloth.
+- **Soundtrack.** A small generative loop at 120 BPM on the course's beat grid: pad and bass always, drums and arpeggio as your flow rises, muffled in slow motion. Each country has its own key. `M` or the note button mutes it.
+- **Live counters** for goblins and gates under the score.
+- **Speed targets tightened** so rank A still takes a tucked, clean run now that shots no longer cost slow-motion time.
+- Tree islands in the middle of the piste are gone: the camera could pass through them.
+- Props are drawn only near the rider, like trees and rocks.
+
+**Tested**
+
+- `npm run check` and `npm test` pass.
+- Scenery frames from all four countries and new hero close-ups were reviewed.
+- **Not tested: the soundtrack.** I cannot hear it. Volume, mix and whether it is pleasant are unverified; it can be muted.
+- **Not tested by a person: the new slow-motion timing.** The 0.3 s hold is a guess (`focusHold` in `src/config.js`).
+
+**Known issues**
+
+- The autopilot (never tucks) gets rank B on Trollheim with 72 of 75 goblins and every gate.
+- Scenery is decoration only; nothing collides with it.
+- Landing craters and clods are simple shapes.
+
+---
+
 ## v0.5 | 2026-11-14 | Claude
 
 Snowballs, a lobby with upgrades, four mountains, and scoring rebuilt around goblins, gates and speed.

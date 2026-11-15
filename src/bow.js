@@ -24,8 +24,11 @@ const arrows = Array.from({ length: 8 }, () => {
 });
 let wasFull = false;
 
-export const focusScale = () => (A.drawing && A.focus > 0 ? (P.grounded ? T.focusGround : T.focusAir) : 1);
-export function startDraw() { if (G.mode !== 'run' || A.drawing) return; A.drawing = true; A.draw = 0; wasFull = false; }
+// Focus is the slow motion. Quick shots stay in real time. You focus by choice: hold the draw past full,
+// hold the focus button (right mouse or Shift), or draw in the middle of a real jump.
+const wantFocus = () => A.drawing && (G.input.focus || A.hold > T.drawTime + T.focusHold || (!P.grounded && P.air > 0.3));
+export const focusScale = () => (A.focusOn ? (P.grounded ? T.focusGround : T.focusAir) : 1);
+export function startDraw() { if (G.mode !== 'run' || A.drawing) return; A.drawing = true; A.draw = 0; A.hold = 0; wasFull = false; }
 export function cancelDraw(silent) { if (A.drawing) { A.drawing = false; A.draw = 0; if (!silent) sfx('cancel'); } }
 
 // Where does an arrow have to leave to arrive at `to`, allowing for its drop and the target's motion?
@@ -38,7 +41,7 @@ const speedNow = () => lerp(T.arrowSpeedMin, T.arrowSpeedMax, Math.pow(A.drawing
 
 function findTarget() {
   // With focus spent, the hands start to shake.
-  const sway = A.drawing && A.focus <= 0 ? 0.035 : 0;
+  const sway = wantFocus() && A.focus <= 0 ? 0.035 : 0;
   ndc.set(G.input.mx + Math.sin(G.rt * 7.3) * sway, G.input.my + Math.cos(G.rt * 5.9) * sway);
   ray.setFromCamera(ndc, camera);
   const o = ray.ray.origin, d = ray.ray.direction;
@@ -93,8 +96,12 @@ export function updateBow(rdt, dt) {
   if (A.drawing) {
     A.draw = Math.min(1, A.draw + rdt / T.drawTime);
     if (A.draw >= 1 && !wasFull) { wasFull = true; sfx('full'); }
-    A.focus = Math.max(0, A.focus - (P.grounded ? T.focusDrain : T.focusDrain * 0.7) * rdt);
-  } else A.focus = Math.min(1, A.focus + T.focusRegen * rdt);
+    A.hold += rdt;
+  }
+  A.focusOn = wantFocus() && A.focus > 0;
+  if (A.focusOn) A.focus = Math.max(0, A.focus - (P.grounded ? T.focusDrain : T.focusDrain * 0.7) * rdt);
+  else if (!wantFocus()) A.focus = Math.min(1, A.focus + T.focusRegen * rdt);
+  A.zoom = damp(A.zoom || 0, A.focusOn ? 1 : 0, A.focusOn ? 9 : 6, rdt);
   A.blend = damp(A.blend, A.drawing ? 1 : 0, A.drawing ? 16 : 7, rdt);
   setDraw(A.draw, A.drawing);
   if (G.mode === 'run') { findTarget(); solve(P.bowPos, target, targetVel, speedNow(), A.dir); }

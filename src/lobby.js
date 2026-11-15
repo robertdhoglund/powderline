@@ -13,7 +13,7 @@ export const unlocked = (i) => i === 0 || (save.best[LEVELS[i - 1].id] && save.b
 
 // Score is goblins, gates and speed. A rank takes most of the goblins, nearly every gate, and a fast time.
 export function settle() {
-  const s = G.stats, t = G.totals, fast = FINISH / 30, slow = FINISH / 17;
+  const s = G.stats, t = G.totals, fast = FINISH / 33, slow = FINISH / 20;
   const speed = clamp((slow - s.time) / (slow - fast), 0, 1), gob = s.kills / t.targets, gate = s.gates / t.gates;
   const rating = 0.4 * gob + 0.25 * gate + 0.35 * speed;
   const rank = rating >= 0.9 ? 'S' : rating >= 0.78 ? 'A' : rating >= 0.6 ? 'B' : rating >= 0.42 ? 'C' : 'D';

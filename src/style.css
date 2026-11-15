@@ -113,3 +113,11 @@ body.touch #reticle { transform-origin: 0 0; }
   #lobby #ride { position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom, 0px) + 8px); transform: translateX(-50%); margin: 0; padding: 13px 34px; font-size: 12px; white-space: nowrap; }
   #lobby #ride:hover { transform: translateX(-50%); }
 }
+
+#reticle.focus svg { transform: rotate(-90deg) scale(1.25); } #reticle svg { transition: transform .2s; }
+
+#tally { margin-top: 10px; font-size: 10px; font-weight: 700; letter-spacing: .24em; opacity: .85; }
+#tally b { color: var(--gold); font-weight: 700; }
+#musicBtn { position: absolute; top: 14px; left: calc(50% + 44px); pointer-events: auto; font: inherit; font-size: 13px; color: var(--ink); background: rgba(20, 10, 60, .35); border: 1px solid rgba(255, 255, 255, .35); border-radius: 20px; padding: 7px 13px; cursor: pointer; }
+#musicBtn.off { opacity: .4; text-decoration: line-through; }
+body:not(.touch) #musicBtn { left: 50%; transform: translateX(-50%); }

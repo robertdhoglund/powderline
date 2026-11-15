@@ -77,3 +77,41 @@ export function sfx(kind, n = 0) {
       break;
   }
 }
+
+// ---- soundtrack: a small generative loop on the course's beat (120 BPM). M or the note button mutes it. ----
+const BEAT = 0.5, PROG = [[0, 4, 7], [-4, 0, 3], [-7, -3, 0], [-2, 2, 5]];   // semitones from the key, one chord per bar
+let musicOn = true, nextBeat = 0, beatN = 0, mGain = null, mFilter = null, energy = 0, key = 45;
+const hz = (n) => 440 * Math.pow(2, (n - 69) / 12);
+function voice(type, freq, t, dur, vol, attack = 0.01) {
+  const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(mFilter); o.start(t); o.stop(t + dur + 0.05);
+}
+function drum(t, kind) {
+  if (kind === 'kick') { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); o.connect(g); g.connect(mGain); o.start(t); o.stop(t + 0.22); return; }
+  const s = ctx.createBufferSource(); s.buffer = noiseBuf; const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = kind === 'hat' ? 7000 : 1800;
+  const g = ctx.createGain(); g.gain.setValueAtTime(kind === 'hat' ? 0.06 : 0.16, t); g.gain.exponentialRampToValueAtTime(0.0001, t + (kind === 'hat' ? 0.04 : 0.13));
+  s.connect(f); f.connect(g); g.connect(mGain); s.start(t, Math.random()); s.stop(t + 0.2);
+}
+export function setKey(semitone) { key = semitone; }
+export function toggleMusic() { musicOn = !musicOn; if (mGain) mGain.gain.setTargetAtTime(musicOn ? 0.5 : 0, ctx.currentTime, 0.1); return musicOn; }
+// Called every frame. playing: in a run. flow 1..8 adds layers. slow: time scale, which muffles the mix.
+export function music(playing, flow, slow) {
+  if (!ctx) return;
+  if (!mGain) { mGain = ctx.createGain(); mGain.gain.value = musicOn ? 0.5 : 0; mFilter = ctx.createBiquadFilter(); mFilter.type = 'lowpass'; mFilter.connect(mGain); mGain.connect(master); nextBeat = ctx.currentTime + 0.1; }
+  energy += ((playing ? 0.35 + (flow - 1) / 7 * 0.65 : 0.12) - energy) * 0.02;
+  mFilter.frequency.setTargetAtTime((500 + energy * 5200) * (0.25 + slow * 0.75), ctx.currentTime, 0.08);
+  if (nextBeat < ctx.currentTime - 1) nextBeat = ctx.currentTime + 0.05;
+  while (nextBeat < ctx.currentTime + 0.2) {
+    const t = nextBeat, half = beatN % 8, chord = PROG[Math.floor(beatN / 8) % PROG.length];   // beatN counts half-beats
+    if (half === 0) { for (const n of chord) voice('sawtooth', hz(key + 12 + n), t, BEAT * 4.2, 0.035, 0.4); voice('triangle', hz(key - 12 + chord[0]), t, BEAT * 3.6, 0.2, 0.02); }
+    if (half === 4 && energy > 0.3) voice('triangle', hz(key - 12 + chord[0]), t, BEAT * 1.6, 0.16, 0.02);
+    if (playing) {
+      if (half % 2 === 0 && energy > 0.3) drum(t, 'kick');
+      if (half % 4 === 2 && energy > 0.55) drum(t, 'snare');
+      if (energy > 0.7) drum(t, 'hat');
+      if (energy > 0.25) { const arp = [0, 1, 2, 1, 2, 0, 1, 2][half], oct = half > 3 && energy > 0.6 ? 24 : 12; voice('square', hz(key + 12 + oct + chord[arp]), t, BEAT * 0.45, 0.028 + energy * 0.03); }
+    }
+    beatN++; nextBeat += BEAT / 2;
+  }
+}

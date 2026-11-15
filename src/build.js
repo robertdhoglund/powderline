@@ -38,3 +38,15 @@ export function toon(rimK = 0.7, lift = 0.22) {
   m.customProgramCacheKey = () => `toon${rimK}${lift}`;
   return m;
 }
+
+// Ink outline: a slightly swollen, back-facing copy drawn in one dark colour. Gives figures a drawn edge.
+export const ink = new THREE.ShaderMaterial({
+  side: THREE.BackSide, uniforms: { uT: { value: 0.02 }, uCol: { value: new THREE.Color('#120a36') } },
+  vertexShader: `uniform float uT; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    mv.xyz += normalize(normalMatrix * normal) * uT * (1.0 - mv.z * 0.035) * clamp(1.7 + mv.z / 90.0, 0.0, 1.0); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor = vec4(uCol, 1.0); }`,
+});
+export function outline(root) {
+  const list = []; root.traverse((o) => { if (o.isMesh && o.material.isMeshLambertMaterial) list.push(o); });
+  for (const o of list) { const m = new THREE.Mesh(o.geometry, ink); m.frustumCulled = false; o.add(m); }
+}

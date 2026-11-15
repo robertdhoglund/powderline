@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { G } from './state.js';
 import { scene } from './world.js';
-import { part, place, merge, toon, sph, cyl, cone, box } from './build.js';
+import { part, place, merge, toon, sph, cyl, cone, box, ink } from './build.js';
 import * as snow from './snow.js';
 import { height, cx, dcx, slopeAt, sentries, pacers, gates, FINISH, widthAt } from './course.js';
 import { P } from './player.js';
@@ -61,6 +61,7 @@ function makeEnemy(kind, base) {
   const type = kind === 'pacer' ? 'raider' : base.tower ? 'tower' : 'balloon';
   const group = new THREE.Mesh(type === 'raider' ? raiderGeo : type === 'tower' ? towerGeo : balloonGeo, gobMat);
   group.castShadow = true; group.frustumCulled = false; scene.add(group);
+  { const o = new THREE.Mesh(group.geometry, ink); o.frustumCulled = false; group.add(o); }
   enemies.push({ kind, type, base, group, pos: group.position, pos2: type === 'balloon' ? new THREE.Vector3() : null, vel: new THREE.Vector3(), alive: true, radius: 1.3, phase: enemies.length * 1.7, t: 0, cool: 0, active: kind === 'sentry', chain: -1 });
 }
 sentries.forEach((s) => makeEnemy('sentry', s));
@@ -68,11 +69,21 @@ pacers.forEach((s) => makeEnemy('pacer', s));
 
 // Gates are arches of light across the line.
 const archGeo = new THREE.TorusGeometry(2.9, 0.07, 6, 40, Math.PI), footGeo = new THREE.OctahedronGeometry(0.28, 0);
-const poleMat = new THREE.MeshBasicMaterial({ color: VIOLET }), poleHit = new THREE.MeshBasicMaterial({ color: GOLD });
-const gateObjs = gates.map((g) => {
+const poleMat = new THREE.MeshBasicMaterial({ color: VIOLET }), poleHit = new THREE.MeshBasicMaterial({ color: GOLD }), gateToon = toon(0.5, 0.35);
+// Japan rides through torii; France through race gates, red then blue.
+const VERM = [1.25, 0.2, 0.14];
+const toriiGeo = merge([part(cyl(0.17, 0.2, 4.4, 8), VERM, [-2.9, 2.2, 0]), part(cyl(0.17, 0.2, 4.4, 8), VERM, [2.9, 2.2, 0]), part(box(7.9, 0.34, 0.55), VERM, [0, 4.55, 0]), part(box(8.3, 0.2, 0.7), '#1d1626', [0, 4.82, 0]),
+  part(box(8.3, 0.16, 0.74), '#e6e2ff', [0, 4.98, 0]), part(box(6.6, 0.24, 0.32), VERM, [0, 3.7, 0]), part(box(0.3, 0.6, 0.3), VERM, [0, 4.15, 0]), part(box(0.6, 0.4, 0.6), '#4a4866', [-2.9, 0.2, 0]), part(box(0.6, 0.4, 0.6), '#4a4866', [2.9, 0.2, 0])]);
+const raceGeo = (c) => merge([-1, 1].flatMap((s) => [part(cyl(0.045, 0.045, 2.6, 5), c, [s * 2.9, 1.3, 0]), part(cyl(0.045, 0.045, 2.6, 5), c, [s * 3.7, 1.3, 0]), part(box(0.8, 0.75, 0.04), c, [s * 3.3, 2.1, 0])]));
+const raceRed = raceGeo([1.5, 0.16, 0.2]), raceBlue = raceGeo([0.2, 0.5, 1.7]);
+const gateObjs = gates.map((g, i) => {
   const x = cx(g.d) + g.u, z = -g.d, m = new THREE.Group();
-  m.add(new THREE.Mesh(archGeo, poleMat));
-  for (const s of [-1, 1]) { const f = new THREE.Mesh(footGeo, poleMat); f.position.set(s * 2.9, 0.25, 0); m.add(f); }
+  if (LEVEL.gate === 'torii' || LEVEL.gate === 'race') {
+    const o = new THREE.Mesh(LEVEL.gate === 'torii' ? toriiGeo : i % 2 ? raceBlue : raceRed, gateToon); o.userData.mat = gateToon; o.castShadow = true; m.add(o);
+  } else {
+    m.add(new THREE.Mesh(archGeo, poleMat));
+    for (const s of [-1, 1]) { const f = new THREE.Mesh(footGeo, poleMat); f.position.set(s * 2.9, 0.25, 0); m.add(f); }
+  }
   m.position.set(x, height(x, z) - 0.15, z); m.rotation.y = -Math.atan(dcx(g.d)); scene.add(m);
   return { ...g, poles: [m], state: 0, t: 0 };
 });
@@ -173,15 +184,15 @@ export function updateTargets(dt) {
     if (g.state === 0 && P.d >= g.d) {
       if (Math.abs(P.u - g.u) < 2.9 && P.alt < 5 && G.mode === 'run') {
         g.state = 1; g.t = 0; G.stats.gates++; sfx('gate', G.flow); award(60, 'GATE');
-        g.poles.forEach((p) => { p.children.forEach((c) => { c.material = poleHit; }); burst(_prev.copy(p.position).setY(p.position.y + 2.6), 14, GOLD, { speed: 7, size: 0.14, up: 3, life: 0.7 }); });
+        g.poles.forEach((p) => { p.children.forEach((c) => { if (!c.userData.mat) c.material = poleHit; }); burst(_prev.copy(p.position).setY(p.position.y + 2.6), 14, GOLD, { speed: 7, size: 0.14, up: 3, life: 0.7 }); });
       } else g.state = 2;
     }
-    if (g.state === 1) { g.t += dt; const k = clamp(g.t / 0.5, 0, 1); g.poles.forEach((p) => p.scale.setScalar(Math.max(0.01, 1 + Math.sin(k * 3.14) * 0.45 - k * k))); }
+    if (g.state === 1) { g.t += dt; const k = clamp(g.t / 0.5, 0, 1); g.poles.forEach((p) => p.scale.setScalar(p.children[0].userData.mat ? 1 + Math.sin(k * 3.14) * 0.18 : Math.max(0.01, 1 + Math.sin(k * 3.14) * 0.45 - k * k))); }
   }
 }
 
 export function resetTargets() {
   balls.forEach((b) => { b.live = false; b.m.visible = false; });
   for (const e of enemies) { e.alive = true; e.active = e.kind === 'sentry'; e.group.visible = e.active; e.t = 0; e.cool = rand(0, 1); e.chain = -1; e.vel.set(0, 0, 0); }
-  for (const g of gateObjs) { g.state = g.d < P.d ? 2 : 0; g.poles.forEach((p) => { p.scale.set(1, 1, 1); p.children.forEach((c) => { c.material = poleMat; }); }); }
+  for (const g of gateObjs) { g.state = g.d < P.d ? 2 : 0; g.poles.forEach((p) => { p.scale.set(1, 1, 1); p.children.forEach((c) => { c.material = c.userData.mat || poleMat; }); }); }
 }

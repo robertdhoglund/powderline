@@ -1,4 +1,4 @@
-# POWDERLINE (v0.5)
+# POWDERLINE (v0.6)
 
 A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 
@@ -17,9 +17,11 @@ Then open `http://localhost:8000` in a desktop browser. Do not open `index.html`
 | Carve | `A` / `D` or arrow keys |
 | Tuck (faster) / brake | `W` / `S` |
 | Jump | `Space` |
-| Draw the bow | hold left mouse (time slows, more in the air) |
+| Draw the bow | hold left mouse |
 | Shoot | release |
-| Cancel a shot | right click |
+| Slow motion | keep holding past full draw, or hold right mouse or `Shift` |
+| Cancel a shot | `Q` |
+| Music on or off | `M` |
 | Pause / restart | `P` / `R` |
 
 On a phone: left thumb drags to steer (up tucks, down brakes); right thumb holds and drags to aim, releases to shoot, and taps to jump.
@@ -29,7 +31,7 @@ Things to know:
 - **Carving is the fast line.** Hold an edge, let it go, and the board pumps forward. Gates and tree islands lay out the line.
 - **Let go to aim.** With no steering input the board follows the piste by itself.
 - **The arrow lands where the reticle points.** It flies a real arc, but the launch is solved for you, with some magnetism near targets. Hitting the glowing core is a PERFECT.
-- **Focus** (the ring around the reticle) is the slow motion. It drains while you hold a draw and refills on kills. When it is empty, your aim sways.
+- **Focus** (the ring around the reticle) is the slow motion. Quick shots happen in real time. Hold past full draw to focus; it drains while you do and refills on kills. When it is empty, your aim sways.
 - **Goblins throw snowballs** at where you are heading. Carve to dodge.
 - **Rank** is goblins hit, gates made and speed. Slow motion costs time.
 - **Base camp** is where you pick a mountain and buy upgrades with coins.

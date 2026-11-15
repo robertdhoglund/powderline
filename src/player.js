@@ -4,6 +4,7 @@ import { G } from './state.js';
 import { T } from './config.js';
 import { height, grad, cx, dcx, widthAt, trees } from './course.js';
 import { scene, rim } from './world.js';
+import { outline } from './build.js';
 import { clamp, damp, lerp, rand, wrapPi } from './util.js';
 import * as snow from './snow.js';
 import { Ribbon, shake, arrowMesh, burst } from './fx.js';
@@ -26,7 +27,7 @@ const lam = (c, e = 0.3, k = 0.8) => rim(new THREE.MeshLambertMaterial({ color: 
 const glow = (c, k) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) });
 // The hero: a young ranger. Emerald tunic, cream sleeves, tall leather boots, copper hair, an ochre cape that flies behind.
 const M = { tunic: lam('#1fa36c', 0.3), cream: lam('#f3e8d2', 0.3), sand: lam('#d9c7a4', 0.28), leather: lam('#74442a', 0.3), skin: lam('#f4c8a0', 0.4), hair: lam('#d8622a', 0.45),
-  cape: lam('#e0a030', 0.4), dark: lam('#1b1640', 0.15), suit: lam('#2b2470', 0.2), hot: glow('#ffd070', 2.2), gold: glow('#ffc46b', 2.6), bowGlow: glow('#fff1dc', 0.95), eye: lam('#1b1640', 0) };
+  cape: lam('#e0a030', 0.4), dark: lam('#1b1640', 0.15), suit: lam('#2b2470', 0.2), hot: glow('#ffd070', 2.2), gold: glow('#ffc46b', 2.6), bowGlow: glow('#fff1dc', 0.95), eye: lam('#1b1640', 0), white: lam('#ffffff', 0.5, 0), trim: lam('#f0b83a', 0.7, 0.4) };
 const add = (geo, m, parent = rider) => { const o = new THREE.Mesh(geo, m); parent.add(o); return o; };
 const ball = (r, m, parent = rider, sx = 1, sy = 1, sz = 1) => { const o = add(new THREE.SphereGeometry(r, 16, 12), m, parent); o.scale.set(sx, sy, sz); return o; };
 const box = (w, h, d, m, parent = rider) => add(new THREE.BoxGeometry(w, h, d), m, parent);
@@ -85,8 +86,22 @@ add(new THREE.SphereGeometry(0.185, 16, 10, 0, 6.283, 0, 1.75).rotateX(0.55), M.
   .forEach(([x, y, z, rx, ry, rz, len]) => { const t = add(new THREE.ConeGeometry(0.06, len, 6), M.hair, head); t.position.set(x, y, z); t.rotation.set(rx, ry, rz); });
 for (const sd of [-1, 1]) {
   const ear = add(new THREE.ConeGeometry(0.035, 0.17, 6), M.skin, head); ear.position.set(sd * 0.185, 0.02, 0.03); ear.rotation.set(0.5, 0, -sd * 1.25);
-  ball(0.022, M.eye, head).position.set(sd * 0.065, 0.01, -0.153);
+  ball(0.017, M.eye, head, 1, 1.2, 0.5).position.set(sd * 0.064, 0.008, -0.168);
 }
+// Face: bright eyes with a glint, brows, nose, a small mouth, side locks.
+for (const sd of [-1, 1]) {
+  ball(0.034, M.white, head, 1, 1.25, 0.6).position.set(sd * 0.066, 0.012, -0.15);
+  ball(0.006, M.white, head).position.set(sd * 0.058, 0.02, -0.178);
+  const brow = box(0.07, 0.016, 0.02, M.hair, head); brow.position.set(sd * 0.068, 0.068, -0.155); brow.rotation.z = sd * 0.22;
+  const lock = add(new THREE.ConeGeometry(0.04, 0.17, 6), M.hair, head); lock.position.set(sd * 0.165, -0.03, -0.075); lock.rotation.set(Math.PI + 0.25, 0, -sd * 0.12);
+}
+add(new THREE.ConeGeometry(0.022, 0.06, 5), M.skin, head).position.set(0, -0.025, -0.172);
+box(0.05, 0.012, 0.02, M.leather, head).position.set(0, -0.075, -0.15);
+// Tunic details: gold hem, cream collar, a strap for the quiver, a belt pouch.
+add(new THREE.TorusGeometry(0.29, 0.022, 6, 22).rotateX(Math.PI / 2), M.trim, torso).position.y = -0.485;
+add(new THREE.ConeGeometry(0.13, 0.16, 8).rotateX(Math.PI), M.cream, torso).position.set(0.04, 0.47, 0);
+{ const strap = add(new THREE.TorusGeometry(0.235, 0.022, 6, 22), M.leather, torso); strap.position.set(0, 0.2, 0); strap.rotation.set(0.5, 1.5708, 0); strap.scale.set(1, 1.35, 1); }
+box(0.09, 0.11, 0.1, M.leather, torso).position.set(0.12, -0.2, 0.19);
 const collar = add(new THREE.SphereGeometry(0.17, 12, 8).scale(1.1, 0.55, 1.25), M.cape);            // hood, worn down
 const clasp = ball(0.04, M.gold);
 const quiver = add(new THREE.CylinderGeometry(0.06, 0.045, 0.5, 10), M.leather);
@@ -107,17 +122,18 @@ const nocked = arrowMesh(); bow.add(nocked);
 
 
 rider.traverse((o) => { o.castShadow = true; });
+outline(rider);
 // Cape: one simulated spine, spread into a sheet across the wind.
-const SC = 9, scarfPts = Array.from({ length: SC }, () => V());
-const capePos = new Float32Array(SC * 9), capeGeo = new THREE.BufferGeometry();
+const SC = 12, COLS = 5, scarfPts = Array.from({ length: SC }, () => V());
+const capePos = new Float32Array(SC * COLS * 3), capeGeo = new THREE.BufferGeometry();
 capeGeo.setAttribute('position', new THREE.BufferAttribute(capePos, 3).setUsage(THREE.DynamicDrawUsage));
-{ const idx = []; for (let i = 0; i < SC - 1; i++) for (let j = 0; j < 2; j++) { const k = i * 3 + j; idx.push(k, k + 3, k + 1, k + 1, k + 3, k + 4); } capeGeo.setIndex(idx); }
+{ const idx = []; for (let i = 0; i < SC - 1; i++) for (let j = 0; j < COLS - 1; j++) { const k = i * COLS + j; idx.push(k, k + COLS, k + 1, k + 1, k + COLS, k + COLS + 1); } capeGeo.setIndex(idx); }
 const cape = new THREE.Mesh(capeGeo, rim(new THREE.MeshLambertMaterial({ color: '#e0a030', emissive: '#e0a030', emissiveIntensity: 0.4, side: THREE.DoubleSide }), 0.5, 2.2));
 cape.frustumCulled = false; cape.castShadow = true; scene.add(cape);
-const hem = new Ribbon(3, 0.07, new THREE.Color('#ffd070').multiplyScalar(2.2)), hemPts = [V(), V(), V()];
+const hem = new Ribbon(COLS, 0.06, new THREE.Color('#ffd070').multiplyScalar(2.2)), hemPts = Array.from({ length: COLS }, () => V());
 
 // Landing craters: rings of pushed-up snow that stay where you came down.
-const craterGeo = new THREE.TorusGeometry(1, 0.2, 5, 22).rotateX(Math.PI / 2).scale(1, 0.55, 1);
+const craterGeo = new THREE.TorusGeometry(1, 0.1, 5, 22).rotateX(Math.PI / 2).scale(1, 0.5, 1);
 const craterMat = new THREE.MeshLambertMaterial({ color: '#ffffff' });
 const craters = Array.from({ length: 10 }, () => { const m = new THREE.Mesh(craterGeo, craterMat); m.visible = false; m.receiveShadow = true; scene.add(m); return m; });
 let craterN = 0;
@@ -127,7 +143,7 @@ export function resetPlayer() {
   Object.assign(P, { d: G.debugD ?? -24, h: 0, v: T.startSpeed, vy: 0, grounded: true, air: 0, jumpLock: 0, edge: 0, carveT: 0, brake: 0, onIce: false, bonkT: 0, crouch: 0.25, squash: 0, skid: 0 });
   P.z = -P.d; P.x = cx(P.d); P.y = P.groundY = height(P.x, P.z);
   P.pos.set(P.x, P.y, P.z);
-  scarfPts.forEach((p, i) => p.set(P.x, P.y + 1.6, P.z + i * 0.14));
+  scarfPts.forEach((p, i) => p.set(P.x, P.y + 1.6, P.z + i * 0.1));
   P.spin = 0; craters.forEach((m) => { m.visible = false; }); dumped.clear();
 }
 
@@ -137,7 +153,7 @@ function land(impact) {
   snow.puff(P.pos, 50 + (k * 130 | 0), 0.9 + k * 0.9, P.fwd.x * P.v * 0.35, 0, P.fwd.z * P.v * 0.35);
   sfx('land', k);
   if (k > 0.12) {
-    const m = craters[craterN++ % craters.length], gr = grad(P.x, P.z), sc = 0.9 + k * 1.3;
+    const m = craters[craterN++ % craters.length], gr = grad(P.x, P.z), sc = 0.6 + k * 0.8;
     m.position.set(P.x, P.y + 0.02, P.z); m.quaternion.setFromUnitVectors(UP, _d.set(-gr.x, 1, -gr.z).normalize()); m.scale.set(sc, 1, sc * 1.25); m.visible = true;
     burst(P.pos, 10 + (k * 26 | 0), SNOWC, { speed: 5 + k * 6, size: 0.09, life: 1.1, up: 3 + k * 3, gravity: 18, dir: _d.set(P.fwd.x * P.v * 0.5, 0, P.fwd.z * P.v * 0.5) });
   }
@@ -274,7 +290,7 @@ function pose(dt, tuck, sAlong) {
   nocked.visible = aim.drawing; nocked.position.set(0, 0, pull);
   nockP.set(0, 0, pull * 1.35).applyQuaternion(bow.quaternion).add(bowP);
   handPosF.copy(bowP);
-  handPosB.set(hip.x + 0.25, hip.y + 0.2, 0.5).lerp(nockP, aim.blend);
+  handPosB.set(hip.x + 0.28 - e * 0.18, hip.y + 0.22 + Math.abs(e) * 0.18 + (P.grounded ? 0 : 0.2), 0.52).lerp(nockP, aim.blend);
   a.set(chest.x, chest.y + 0.05, chest.z - 0.24); setLimb(upperF, a, ik(a, handPosF, 0.31, 0.31, _p2.set(0.2, -1, 0), elbow)); setLimb(foreF, elbow, handPosF); elbowF.position.copy(elbow);
   a.set(chest.x, chest.y + 0.05, chest.z + 0.24); setLimb(upperB, a, ik(a, handPosB, 0.31, 0.31, _p2.set(-0.2, -0.6, 1), elbow)); setLimb(foreB, elbow, handPosB); elbowB.position.copy(elbow);
   handF.position.copy(handPosF); handB.position.copy(handPosB);
@@ -285,7 +301,7 @@ function pose(dt, tuck, sAlong) {
 
   // Cape: the spine trails from the back of the neck; the cloth spreads across the wind and ripples.
   scarfPts[0].set(chest.x - 0.16, chest.y + 0.14, chest.z).applyMatrix4(rider.matrixWorld);
-  const seg = 0.14, sp3 = Math.hypot(P.vel.x, P.vel.z);
+  const seg = 0.105, sp3 = Math.hypot(P.vel.x, P.vel.z);
   for (let i = 1; i < SC; i++) {
     const p = scarfPts[i], q = scarfPts[i - 1];
     p.x -= P.vel.x * 0.5 * dt; p.z -= P.vel.z * 0.5 * dt; p.y -= (6.5 - Math.min(3.6, sp3 * 0.14) + P.vel.y * 0.25) * dt;
@@ -296,14 +312,14 @@ function pose(dt, tuck, sAlong) {
     const p = scarfPts[i], q = scarfPts[Math.min(SC - 1, i + 1)], o = scarfPts[Math.max(0, i - 1)], k = i / (SC - 1);
     _d.subVectors(q, o).normalize(); const flat = Math.hypot(_d.x, _d.z);
     a.crossVectors(_d, UP).multiplyScalar(flat).addScaledVector(_p2, 1 - flat).normalize();
-    const w = 0.17 + k * 0.3, ph = G.t * (9 + sp3 * 0.25) - i * 1.1, rip = k * (0.07 + sp3 * 0.006);
-    for (let j = 0; j < 3; j++) {
-      const n = i * 9 + j * 3, sd = j - 1;
-      capePos[n] = p.x + a.x * w * sd; capePos[n + 1] = p.y + a.y * w * sd + Math.sin(ph + sd * 1.3) * rip + (sd === 0 ? 0.07 : -0.04 * k); capePos[n + 2] = p.z + a.z * w * sd;
+    const w = 0.19 + Math.sqrt(k) * 0.34, ph = G.t * (9 + sp3 * 0.25) - i * 0.85, rip = k * (0.06 + sp3 * 0.005);
+    for (let j = 0; j < COLS; j++) {
+      const n = (i * COLS + j) * 3, sd = (j - 2) / 2;
+      capePos[n] = p.x + a.x * w * sd; capePos[n + 1] = p.y + a.y * w * sd + Math.sin(ph + sd * 2.1) * rip + (1 - sd * sd) * (0.09 + k * 0.05) - k * 0.03; capePos[n + 2] = p.z + a.z * w * sd;
     }
   }
   capeGeo.attributes.position.needsUpdate = true; capeGeo.computeVertexNormals();
-  for (let j = 0; j < 3; j++) hemPts[j].fromArray(capePos, (SC - 1) * 9 + j * 3);
+  for (let j = 0; j < COLS; j++) hemPts[j].fromArray(capePos, ((SC - 1) * COLS + j) * 3);
   hem.update(hemPts, 0, 1);
 }
 const _zero = V(), _z = V(0, 0, 1), _p2 = V();

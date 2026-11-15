@@ -11,7 +11,7 @@ import { updateIce, resetIce } from './ice.js';
 import './props.js';
 import { updateBow, resetBow, startDraw, release, cancelDraw, focusScale } from './bow.js';
 import { updateHud, showHud, showOverlay, pop } from './hud.js';
-import { initAudio, setRide, silence } from './audio.js';
+import { initAudio, setRide, silence, music, toggleMusic, setKey } from './audio.js';
 import { openLobby, closeLobby, settle } from './lobby.js';
 import { LEVEL } from './levels.js';
 import { save, persist, upLevel } from './store.js';
@@ -56,12 +56,15 @@ addEventListener('keydown', (e) => {
   if (e.repeat) return;
   if (k === ' ' || k === 'enter') { if (G.mode === 'run') { if (k === ' ') I.jump = true; } else if (G.mode === 'title') lobby(); else if (G.mode === 'lobby') ride(); else if (G.mode === 'finished' || (k === 'enter' && G.mode === 'paused')) start(); }
   if (k === 'p' || k === 'escape') pause();
+  if (k === 'q' || k === 'c') cancelDraw();
+  if (k === 'm') document.getElementById('musicBtn').classList.toggle('off', !toggleMusic());
   if (k === 'r' && G.mode !== 'lobby' && G.mode !== 'title') { G.mode = 'title'; start(); }
 });
 addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => { keys.clear(); if (G.mode === 'run' && !G.auto) pause(); });
 // Mouse: the reticle follows the pointer; hold to draw, release to shoot.
 // Touch: left thumb drags to steer (up = tuck, down = brake); right thumb holds and drags to aim, releases to shoot, taps to jump.
+let mouseFocus = false;
 const touch = { steer: null, aim: null, turn: 0, tuck: false, brake: false };
 const setReticle = (x, y) => { I.px = clamp(x, 0, innerWidth); I.py = clamp(y, 0, innerHeight); I.mx = (I.px / innerWidth) * 2 - 1; I.my = 1 - (I.py / innerHeight) * 2; };
 addEventListener('pointermove', (e) => {
@@ -79,12 +82,12 @@ addEventListener('pointermove', (e) => {
 });
 addEventListener('pointerdown', (e) => {
   if (G.mode !== 'run') return;
-  if (e.pointerType !== 'touch') { if (e.button === 0) startDraw(); else if (e.button === 2) cancelDraw(); return; }
+  if (e.pointerType !== 'touch') { if (e.button === 0) startDraw(); else if (e.button === 2) { I.focus = true; mouseFocus = true; } return; }
   if (e.clientX < innerWidth / 2) { if (!touch.steer) touch.steer = { id: e.pointerId, x0: e.clientX, y0: e.clientY }; }
   else if (!touch.aim) { touch.aim = { id: e.pointerId, x0: e.clientX, y0: e.clientY, rx: I.px, ry: I.py, t0: e.timeStamp, moved: false }; startDraw(); }
 });
 const lift = (e) => {
-  if (e.pointerType !== 'touch') { if (e.button === 0) release(); return; }
+  if (e.pointerType !== 'touch') { if (e.button === 0) release(); else if (e.button === 2) { I.focus = false; mouseFocus = false; } return; }
   if (touch.steer && e.pointerId === touch.steer.id) { touch.steer = null; touch.turn = 0; touch.tuck = touch.brake = false; }
   if (touch.aim && e.pointerId === touch.aim.id) {
     if (!touch.aim.moved && e.timeStamp - touch.aim.t0 < 230) { cancelDraw(true); if (G.mode === 'run') I.jump = true; } else release();
@@ -92,6 +95,8 @@ const lift = (e) => {
   }
 };
 addEventListener('pointerup', lift); addEventListener('pointercancel', lift);
+document.getElementById('musicBtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.currentTarget.classList.toggle('off', !toggleMusic()); });
+setKey({ norway: 45, japan: 50, alps: 48, alaska: 43 }[LEVEL.id] || 45);
 document.getElementById('pauseBtn').addEventListener('pointerdown', (e) => { e.stopPropagation(); pause(); });
 document.getElementById('restart').addEventListener('click', (e) => { e.stopPropagation(); if (G.mode === 'finished') lobby(); else { G.mode = 'title'; start(); } });
 addEventListener('contextmenu', (e) => e.preventDefault());
@@ -101,6 +106,7 @@ setReticle(innerWidth / 2, innerHeight * 0.42);
 function readInput() {
   const has = (...k) => k.some((x) => keys.has(x));
   I.turn = (has('d', 'arrowright') ? 1 : 0) - (has('a', 'arrowleft') ? 1 : 0);
+  if (has('shift')) I.focus = true; else if (!mouseFocus) I.focus = false;
   I.tuck = has('w', 'arrowup') || touch.tuck; I.brake = has('s', 'arrowdown') || touch.brake;
   if (!I.turn) I.turn = touch.turn;
   if (G.auto && G.mode === 'run') autopilot();
@@ -144,6 +150,7 @@ function step(rdt) {
 function frame(now) {
   requestAnimationFrame(frame);
   const rdt = Math.min(0.05, Math.max(0.001, (now - last) / 1000)); last = now;
+  music(G.mode === 'run', G.flow, G.mode === 'run' ? 0.4 + G.timeScale * 0.6 : 1);
   if (G.mode === 'lobby' || G.mode === 'paused') return;   // the last frame stays up behind the menu
   step(rdt); watchPerformance(rdt);
   composer.render();
