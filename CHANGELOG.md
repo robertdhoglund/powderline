@@ -1,5 +1,41 @@
 # Changes and handoffs
 
+## v0.10 | 2026-11-15 | Claude
+
+Physically based rendering, a Link-style ranger rebuilt at that quality, and air tricks that count toward the verdict. The flat ink look from v0.9 is retired.
+
+**Changed**
+
+- **Rendering.** Every material is now physically based. The sky is rendered into an environment map every few seconds and lights and reflects in everything, so surfaces pick up the colour of the dusk, the afterglow or the night. Bloom is back up slightly; the ink pass is turned down to a faint contact line.
+- **Procedural surface detail.** Cloth has a weave, leather a grain, wood and hair a strand direction, fir boughs a needle texture. These are normal maps drawn on a canvas at load (`normalMapFrom` and `TEX` in `src/world.js`), no image files.
+- **The rider is a ranger again**, rebuilt with the shaped-volume tool:
+  - Green tunic with a flared skirt, gold hem and gold-edged collar; cream shirt sleeves under short green caps; leather bracers with gold rings; belt, buckle and pouch; khaki breeches; tall leather boots with a folded cuff; quiver with a gold band and red fletching.
+  - The drawn face returns at double resolution, with lid shadows.
+  - Hair is built from fifteen curved, tapering locks: a parted fringe, layered swept-back locks, side locks, a cowlick. Pointed ears are shaped, not cones.
+  - Gold is real metal and reflects the sky. The board is wood with a gold and green inlay. The bow is wood.
+  - Red scarf tails stay.
+- **Trees.** Layered firs: six or seven thin drooping skirts, each with a shelf of snow.
+- **Air tricks.** In the air: hold left or right to spin, tap up for a front flip or down for a backflip (hold for more), hold `E` or `F` to grab. On touch: left thumb sideways spins, up or down flips, tap right to grab. A flip finishes its turn by itself once started.
+  - Scores: 150 per half spin, 500 per flip, 400 per second of grab; two kinds in one jump multiply by 1.6, three by 2.4, and flow multiplies on top.
+  - Land a flip or spin too far off square and it is SKETCHY: no points, some speed and your flow lost. Steering in the air to line up a landing never counts against you.
+  - **Tricks count toward the verdict:** a full style score (6,000 raw points) adds 8 points to both the goblin share and the gate share, so tricks can carry you over a rank line. The finish screen shows STYLE with a bar.
+- **Camera** sits closer and widens less with speed; the rider is drawn larger.
+
+**Tested**
+
+- `npm run check` and `npm test` pass.
+- A scripted backflip with a grab off the icefall jump lands clean and scores (1,820 style points). Spins, front flips and the sketchy landing were not each tested separately.
+- Rider close-ups and two gameplay frames were reviewed.
+- **Performance unverified.** Physically based shading and the environment map cost more than the old materials.
+
+**Known issues**
+
+- Goblins, cabins and props use the new lighting but keep their old shapes.
+- The environment map refresh every four seconds may cause a small hitch on slow devices.
+- Tree snow bands are regular.
+
+---
+
 ## v0.9 | 2026-11-15 | Claude
 
 A new visual direction: flat colour, hard two-tone light, ink lines on everything, and a rider with real proportions. The reference is Rollerdrome's comic-book look, in our own palette and designs.

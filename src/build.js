@@ -1,6 +1,6 @@
 // Tiny model-building kit: describe a figure as coloured primitives, merge them into one mesh (one draw call).
 import * as THREE from 'three';
-import { rim, RAMP } from './world.js';
+
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
 // part(geometry, colour, position, rotation, scale). A colour brighter than 1 glows.
@@ -16,26 +16,27 @@ export function place(parts, p = [0, 0, 0], r = [0, 0, 0], s = 1) {
   return parts.map((x) => ({ ...x, pre: x.pre ? M.clone().multiply(x.pre) : M.clone() }));
 }
 export function merge(parts) {
-  const pos = [], nor = [], col = [];
+  const pos = [], nor = [], col = [], uv = [];
   for (const x of parts) {
     const g = x.g.index ? x.g.toNonIndexed() : x.g.clone();
     _m.compose(_p.set(...x.p), _q.setFromEuler(_e.set(...x.r)), _s.set(...x.s)); if (x.pre) _m.premultiply(x.pre);
     g.applyMatrix4(_m);
     _c.set(x.c instanceof THREE.Color ? x.c : new THREE.Color(Array.isArray(x.c) ? 0 : x.c)); if (Array.isArray(x.c)) _c.setRGB(...x.c);
-    const P = g.attributes.position, Nn = g.attributes.normal;
-    for (let i = 0; i < P.count; i++) { pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(Nn.getX(i), Nn.getY(i), Nn.getZ(i)); col.push(_c.r, _c.g, _c.b); }
+    const P = g.attributes.position, Nn = g.attributes.normal, U = g.attributes.uv;
+    for (let i = 0; i < P.count; i++) { pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(Nn.getX(i), Nn.getY(i), Nn.getZ(i)); col.push(_c.r, _c.g, _c.b); if (U) uv.push(U.getX(i), U.getY(i)); else uv.push(0, 0); }
   }
   const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   return out;
 }
 // Lit, rim-lit, vertex-coloured material. Any vertex colour above 1.0 is treated as its own light.
-export function toon(rimK = 0.7, lift = 0.22, color = null) {
-  const m = new THREE.MeshToonMaterial(color ? { color, gradientMap: RAMP } : { vertexColors: true, gradientMap: RAMP });
-  rim(m, rimK, 2.2);
-  const base = m.onBeforeCompile, src = color ? 'diffuseColor.rgb' : 'vColor.rgb';
-  m.onBeforeCompile = (sh) => { base(sh); sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `outgoingLight += max(${src} - 1.0, 0.0) * 1.6 + min(${src}, 1.0) * ${lift.toFixed(2)};\n#include <opaque_fragment>`); };
-  m.customProgramCacheKey = () => `toon${rimK}${lift}${color ? 'c' : 'v'}`;
+// The shared material for built models: physically based, coloured by vertices (or one colour). Any colour
+// above 1.0 is treated as its own light, so lantern glass, eyes and flames glow. opts adds maps or changes roughness.
+export function toon(_rim = 0, _lift = 0, color = null, opts = {}) {
+  const m = new THREE.MeshStandardMaterial({ roughness: 0.74, metalness: 0, ...(color ? { color } : { vertexColors: true }), ...opts });
+  const src = color ? 'diffuseColor.rgb' : 'vColor.rgb';
+  m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n totalEmissiveRadiance += max(${src} - 1.0, 0.0) * 1.7;`); };
+  m.customProgramCacheKey = () => `pbr${color ? 'c' : 'v'}`;
   return m;
 }
 
@@ -47,7 +48,7 @@ export const ink = new THREE.ShaderMaterial({
   fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor = vec4(uCol, 1.0); }`,
 });
 export function outline(root) {
-  const list = []; root.traverse((o) => { if (o.isMesh && (o.material.isMeshLambertMaterial || o.material.isMeshToonMaterial)) list.push(o); });
+  const list = []; root.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) list.push(o); });
   for (const o of list) { const m = new THREE.Mesh(o.geometry, ink); m.frustumCulled = false; o.add(m); }
 }
 
@@ -56,13 +57,13 @@ export function outline(root) {
 export function loft(rings, colorAt, seg = 16) {
   // Each band between two rings gets its own vertices and one flat colour, so colour blocks have crisp edges.
   // Normals are computed from the shape itself, so the surface still shades smoothly across those edges.
-  const pos = [], col = [], nor = [], idx = [], c = new THREE.Color(), n = rings.length, row = seg + 1, v = new THREE.Vector3();
+  const pos = [], col = [], nor = [], uv = [], idx = [], c = new THREE.Color(), n = rings.length, row = seg + 1, v = new THREE.Vector3();
   const ringVerts = (i, tMid) => {
     const [y, rx, rz, ox = 0, oz = 0] = rings[i], lo = rings[Math.max(0, i - 1)], hi = rings[Math.min(n - 1, i + 1)], dy = (hi[0] - lo[0]) || 1, slope = ((hi[1] + hi[2]) - (lo[1] + lo[2])) / 2 / dy;
     for (let j = 0; j <= seg; j++) {
       const a = j / seg * 6.2832; pos.push(ox + Math.cos(a) * rx, y, oz + Math.sin(a) * rz);
       v.set(Math.cos(a) * rz, -slope * Math.max(rx, rz), Math.sin(a) * rx).normalize(); nor.push(v.x, v.y, v.z);
-      c.set(colorAt(tMid, (j + 0.5) / seg * 6.2832)); col.push(c.r, c.g, c.b);
+      c.set(colorAt(tMid, (j + 0.5) / seg * 6.2832)); col.push(c.r, c.g, c.b); uv.push(j / seg * 2, y * 2.4);
     }
   };
   for (let i = 0; i < n - 1; i++) {
@@ -71,11 +72,11 @@ export function loft(rings, colorAt, seg = 16) {
   }
   for (const [i, flip] of [[0, true], [n - 1, false]]) {
     const [y, rx, rz, ox = 0, oz = 0] = rings[i], centre = pos.length / 3; c.set(colorAt(i ? 1 : 0, 0));
-    pos.push(ox, y, oz); nor.push(0, flip ? -1 : 1, 0); col.push(c.r, c.g, c.b);
-    for (let j = 0; j <= seg; j++) { const a = j / seg * 6.2832; pos.push(ox + Math.cos(a) * rx, y, oz + Math.sin(a) * rz); nor.push(0, flip ? -1 : 1, 0); col.push(c.r, c.g, c.b); }
+    pos.push(ox, y, oz); nor.push(0, flip ? -1 : 1, 0); col.push(c.r, c.g, c.b); uv.push(0.5, 0.5);
+    for (let j = 0; j <= seg; j++) { const a = j / seg * 6.2832; pos.push(ox + Math.cos(a) * rx, y, oz + Math.sin(a) * rz); nor.push(0, flip ? -1 : 1, 0); col.push(c.r, c.g, c.b); uv.push(0.5 + Math.cos(a) * 0.5, 0.5 + Math.sin(a) * 0.5); }
     for (let j = 0; j < seg; j++) { const a = centre + 1 + j; if (flip) idx.push(centre, a, a + 1); else idx.push(centre, a + 1, a); }
   }
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
   return g;
 }

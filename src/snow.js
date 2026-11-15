@@ -85,7 +85,7 @@ const tGeo = new THREE.BufferGeometry();
 tGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3).setUsage(THREE.DynamicDrawUsage));
 tGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3).setUsage(THREE.DynamicDrawUsage));
 tGeo.setAttribute('normal', new THREE.BufferAttribute(tNor, 3).setUsage(THREE.DynamicDrawUsage));
-const trench = new THREE.Mesh(tGeo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+const trench = new THREE.Mesh(tGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
 trench.frustumCulled = false; trench.receiveShadow = true; scene.add(trench);
 let tHead = 0, prev = null;
 const SHADE = [1.0, 1.12, 0.6, 0.6, 1.12, 1.0, 1.0];     // outer, berm, floor edge, floor edge, berm, outer

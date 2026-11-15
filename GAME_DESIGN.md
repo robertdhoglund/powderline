@@ -86,9 +86,9 @@ Steering and aiming simultaneously may be too demanding. Keep the start easy. Th
 - **Progression.** Coins, upgrades and four mountains with their own scenery, light and layout.
 - **Fail-soft still holds.** Snowballs cost speed and flow, never the run.
 
-## Art direction since v0.9
+## Art direction since v0.10
 
-Flat colour blocks, hard two-tone light, ink lines on every edge, real proportions. The reference for the feel is Rollerdrome's comic-book look; palette, characters and scenery are our own. Earlier notes about low-poly facets and glow no longer describe the target.
+Physically based and lit by the sky: real materials (cloth, leather, metal, snow) with procedural surface detail, soft light, restrained bloom. The hero is a Link-style ranger of our own design. The flat ink look tried in v0.9 was dropped.
 
 ## Deferred on purpose
 

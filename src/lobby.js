@@ -17,14 +17,17 @@ export const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).
 export const RANKS = [['S', 0.97, 0.93], ['A', 0.9, 1.0], ['B', 0.75, 1.12], ['C', 0.55, 1.28], ['D', 0.35, 1.5]];
 export function settle() {
   const s = G.stats, t = G.totals, par = LEVEL.par || FINISH / 28;
-  const gob = s.kills / t.targets, gate = s.gates / t.gates, time = s.time;
+  // Tricks count toward the verdict: a full style score adds up to 8 points to both the goblin and the gate share.
+  const styleK = clamp(s.style / (LEVEL.style || 6000), 0, 1), lift = 0.08 * styleK;
+  const gob = Math.min(1, s.kills / t.targets + lift), gate = Math.min(1, s.gates / t.gates + lift), time = s.time;
   const got = RANKS.find(([, share, k]) => gob >= share && gate >= share && time <= par * k);
   const rank = got ? got[0] : 'E';
   // What the next rank up still needs.
   const up = RANKS[(got ? RANKS.indexOf(got) : RANKS.length) - 1], need = [];
   if (up) {
-    if (gob < up[1]) need.push(`${Math.ceil(up[1] * t.targets) - s.kills} more goblins`);
-    if (gate < up[1]) need.push(`${Math.ceil(up[1] * t.gates) - s.gates} more gates`);
+    if (gob < up[1]) need.push(`${Math.max(1, Math.ceil((up[1] - lift) * t.targets) - s.kills)} more goblins`);
+    if (gate < up[1]) need.push(`${Math.max(1, Math.ceil((up[1] - lift) * t.gates) - s.gates)} more gates`);
+    if (styleK < 1 && need.length) need.push('or more tricks');
     if (time > par * up[2]) need.push(`${Math.ceil(time - par * up[2])} s faster`);
   }
   const speed = clamp(1 - (time - par) / (par * 0.5), 0, 1);
@@ -33,7 +36,7 @@ export function settle() {
   const old = save.best[LEVEL.id], next = LEVELS[LEVELS.indexOf(LEVEL) + 1], wasLocked = next && !unlocked(LEVELS.indexOf(next));
   if (!old || ORDER.indexOf(rank) > ORDER.indexOf(old.rank) || (rank === old.rank && G.score > old.score)) save.best[LEVEL.id] = { rank, score: G.score };
   save.coins += coins; persist();
-  return { rank, speed, gob, gate, speedBonus, coins, par, need: up ? `FOR ${up[0]}: ${need.join(' · ')}` : 'A PERFECT RUN', opened: wasLocked && unlocked(LEVELS.indexOf(next)) ? next : null };
+  return { rank, speed, gob, gate, styleK, speedBonus, coins, par, need: up ? `FOR ${up[0]}: ${need.join(' · ')}` : 'A PERFECT RUN', opened: wasLocked && unlocked(LEVELS.indexOf(next)) ? next : null };
 }
 
 let onRide = null;

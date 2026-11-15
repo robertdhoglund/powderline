@@ -31,6 +31,6 @@ export const T = {
   assistAngle: 0.03,     // radians of aim magnetism around a target
 
   // Camera
-  fovBase: 60, fovSpeed: 17, fovAim: 15,
-  camDist: 5.9, camHeight: 2.2,
+  fovBase: 58, fovSpeed: 12, fovAim: 15,
+  camDist: 5.2, camHeight: 2.15,
 };

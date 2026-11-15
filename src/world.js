@@ -15,7 +15,7 @@ export const scene = new THREE.Scene();
 export const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.3, 6000);
 export const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 1.05;
 document.getElementById('game').appendChild(renderer.domElement);
 
 let pixelRatio = Math.min(TOUCH ? 1.25 : 1.5, window.devicePixelRatio || 1);
@@ -23,7 +23,7 @@ const target = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THRE
 target.depthTexture = new THREE.DepthTexture(innerWidth, innerHeight);   // read back by the ink pass
 export const composer = new EffectComposer(renderer, target);
 composer.addPass(new RenderPass(scene, camera));
-export const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.26, 0.6, 1.0);
+export const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.34, 0.7, 1.0);
 composer.addPass(bloom);
 // Lens and ink. Ink draws a dark line wherever depth breaks: every silhouette and overlap in the scene gets a drawn edge.
 // Then: speed blur toward the edges, a little colour fringing, vignette, grain.
@@ -43,7 +43,7 @@ export const lens = new ShaderPass({
       vec2 o = uPx * 1.25; float d0 = lin(vUv);
       float lap = abs(lin(vUv - vec2(o.x, 0.0)) + lin(vUv + vec2(o.x, 0.0)) - 2.0 * d0) + abs(lin(vUv - vec2(0.0, o.y)) + lin(vUv + vec2(0.0, o.y)) - 2.0 * d0);
       float edge = smoothstep(0.02, 0.07, lap / d0) * (1.0 - smoothstep(160.0, 520.0, d0));
-      col = mix(col, uInk, edge * 0.9);
+      col = mix(col, uInk, edge * 0.22);
       col *= mix(vec3(1.0), uTint, smoothstep(0.08, 0.62, r2));
       col *= 1.0 + (hash(vUv * 900.0 + uTime) - 0.5) * 0.045;
       gl_FragColor = vec4(col, 1.0);
@@ -100,19 +100,32 @@ export function sunFocus(p) { sun.target.position.copy(p); sun.position.copy(p).
 scene.fog = new THREE.FogExp2(0xffffff, LEVEL.fog || 0.0027);
 
 // Rim light: every lit surface picks up the low sun along its silhouette.
-export function rim(material, strength = 0.6, power = 3) {
-  material.onBeforeCompile = (sh) => {
-    sh.uniforms.uRimCol = { value: pal.light };
-    sh.fragmentShader = 'uniform vec3 uRimCol;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
-      `float rimF = pow(1.0 - saturate(dot(normalize(vViewPosition), normal)), ${power.toFixed(1)}); outgoingLight += uRimCol * rimF * ${(strength * 0.35).toFixed(3)};\n#include <opaque_fragment>`);
-  };
-  material.customProgramCacheKey = () => `rim${strength}${power}`;
-  return material;
-}
+// Materials are physically based: they are lit by the sun, by shadows, and by the sky itself (see the environment map below).
+// rim() and cel() are kept as names from the older looks; both now return plain physically based materials.
+export function rim(material) { return material; }
+export const RAMP = null;
+export const cel = (params) => new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, ...params });
 
-// Cel shading: light falls in a few flat steps instead of a smooth gradient, like painted animation.
-export const RAMP = (() => { const t = new THREE.DataTexture(new Uint8Array([150, 150, 255, 255]), 4, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
-export const cel = (params, rimK = 0.6, power = 2.4) => rim(new THREE.MeshToonMaterial({ gradientMap: RAMP, ...params }), rimK, power);
+// Small procedural texture kit: tiling normal maps drawn on a canvas, so cloth has a weave and leather a grain.
+export function normalMapFrom(heightFn, size = 128, strength = 2, repeat = 4) {
+  const h = new Float32Array(size * size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) h[y * size + x] = heightFn(x / size, y / size);
+  const cv = document.createElement('canvas'); cv.width = cv.height = size; const g = cv.getContext('2d'), img = g.createImageData(size, size);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const l = h[y * size + (x + size - 1) % size], r = h[y * size + (x + 1) % size], u = h[((y + size - 1) % size) * size + x], d = h[((y + 1) % size) * size + x];
+    let nx = (l - r) * strength, ny = (u - d) * strength, nz = 1; const k = 1 / Math.hypot(nx, ny, nz), i = (y * size + x) * 4;
+    img.data[i] = (nx * k * 0.5 + 0.5) * 255; img.data[i + 1] = (ny * k * 0.5 + 0.5) * 255; img.data[i + 2] = (nz * k * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat, repeat); t.anisotropy = 4; return t;
+}
+const hsh = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
+export const TEX = {
+  weave: normalMapFrom((u, v) => Math.sin(u * 6.2832 * 24) * 0.5 + Math.sin(v * 6.2832 * 24) * 0.5 + hsh(Math.floor(u * 64), Math.floor(v * 64)) * 0.3, 128, 1.6, 6),
+  leather: normalMapFrom((u, v) => { let m = 9; for (let i = 0; i < 9; i++) { const cx0 = hsh(i, 3) , cy0 = hsh(i, 7); for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) m = Math.min(m, Math.hypot(u - cx0 - ox, v - cy0 - oy)); } return Math.min(1, m * 5); }, 128, 3.5, 5),
+  needles: normalMapFrom((u, v) => Math.sin((u * 3 + v) * 6.2832 * 9) * 0.6 + hsh(Math.floor(u * 48), Math.floor(v * 48)) * 0.9, 128, 2.2, 3),
+  wood: normalMapFrom((u, v) => Math.sin(u * 6.2832 * 14 + Math.sin(v * 6.2832 * 2) * 1.5) * 0.7 + hsh(Math.floor(u * 90), Math.floor(v * 6)) * 0.5, 128, 2.2, 2),
+};
 
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
@@ -153,6 +166,15 @@ const skyMat = new THREE.ShaderMaterial({
     }`,
 });
 const sky = new THREE.Mesh(new THREE.SphereGeometry(4000, 32, 20), skyMat);
+// The sky lights the scene: it is re-rendered into a small environment map as the light changes, and every material reflects it.
+const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene();
+envScene.add(new THREE.Mesh(sky.geometry, skyMat));
+let envRT = null, envAt = -99;
+function refreshEnv(time) {
+  if (time - envAt < 4) return; envAt = time;
+  const rt = pmrem.fromScene(envScene, 0, 1, 5000, { size: 64 }); if (envRT) envRT.dispose(); envRT = rt; scene.environment = rt.texture;
+}
+scene.environmentIntensity = 0.9;
 sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
 
 // Layered far ridges. They ride along with the camera, like a painted backdrop.
@@ -232,7 +254,7 @@ const shadowTex = (() => {
   geo.setAttribute('aU', new THREE.BufferAttribute(aU, 1));
   geo.setIndex(idx); geo.computeVertexNormals();
   // Snow as a material: wind ripples that catch the low light, blue tree shadows, sparkle, a sheen toward the sun.
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0 });
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, { uShadow: { value: shadowTex }, uRimCol: { value: pal.light }, uShadeCol: { value: pal.shade }, uSunView: { value: sunView } });
     sh.vertexShader = 'attribute float aU; varying vec3 vWp; varying float vU;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vWp = (modelMatrix * vec4(transformed, 1.0)).xyz; vU = aU;');
@@ -262,26 +284,29 @@ const shadowTex = (() => {
 }
 
 // ---- trees: layered, snow-laden firs --------------------------------------------------------
-// Graphic firs: clean stacked cones in one flat colour, each tier wearing a crisp white cap. The ink pass draws their edges.
-function firGeometry(tiers, girth, height0) {
-  const body = LEVEL.tree ? LEVEL.tree[0] : '#1c1a58', body2 = LEVEL.tree ? LEVEL.tree[1] : '#2a2a7a', parts = [part(cyl(0.2, 0.3, 2.6, 7), '#110e2a', [0, 1.2, 0])];
-  let y = 1.8;
+// Firs: many thin drooping skirts of needles, each carrying a shelf of snow, with wavy rims so no two tiers line up.
+function firGeometry(tiers, girth, height0, seed) {
+  const r = rng(seed), body = new THREE.Color(LEVEL.tree ? LEVEL.tree[0] : '#1f3f66'), body2 = new THREE.Color(LEVEL.tree ? LEVEL.tree[1] : '#2c5f7c');
+  const parts = [part(cyl(0.2, 0.32, 2.8, 8), '#2a1c18', [0, 1.3, 0])];
+  const skirt = (rad, h, wav, ph) => { const g = new THREE.ConeGeometry(rad, h, 14, 3, true), p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const y = p.getY(i), k = 1 - (y + h / 2) / h, a = Math.atan2(p.getZ(i), p.getX(i)), w = 1 + Math.sin(a * 3 + ph) * wav * k; p.setXYZ(i, p.getX(i) * w, y - k * k * h * 0.2, p.getZ(i) * w); }
+    g.computeVertexNormals(); return g; };
+  let y = 1.9;
   for (let t = 0; t < tiers; t++) {
-    const k = t / Math.max(1, tiers - 1), rad = lerp(2.7, 1.1, k) * girth, h = lerp(4.2, 3.0, k) * height0;
-    parts.push(part(new THREE.ConeGeometry(rad, h, 11, 1, false), t % 2 ? body2 : body, [0, y + h / 2, 0]));
-    parts.push(part(new THREE.ConeGeometry(rad * 0.66, h * 0.6, 11, 1, true), '#f6f3ff', [0, y + h * 0.71, 0], [0, 0, 0], [1.06, 1, 1.06]));
-    y += h * 0.5;
+    const k = t / (tiers - 1), rad = lerp(3.0, 0.7, Math.pow(k, 0.8)) * girth, h = lerp(2.9, 2.0, k) * height0, ph = r() * 6.28, c = body.clone().lerp(body2, r() * 0.9);
+    parts.push(part(skirt(rad, h, 0.07, ph), c, [0, y + h / 2, 0]));
+    parts.push(part(skirt(rad * 0.74, h * 0.74, 0.07, ph), [0.93, 0.95, 1.0], [0, y + h * 0.63 + 0.16, 0]));   // same slope as the bough, lifted clear of it
+    y += h * 0.42;
   }
   return merge(parts);
 }
 {
-  const mat = cel({ vertexColors: true }, 0.3, 2.5);
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, normalMap: TEX.needles, normalScale: new THREE.Vector2(0.35, 0.35), side: THREE.DoubleSide });
   // Trees dissolve when they come between the camera and the rider, so the view is never blocked.
-  const baseCompile = mat.onBeforeCompile;
-  mat.onBeforeCompile = (sh) => { baseCompile(sh); sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
     if (fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) > smoothstep(5.0, 12.0, length(vViewPosition))) discard;`); };
   mat.customProgramCacheKey = () => 'treeFade';
-  const kinds = [firGeometry(3, 1.0, 1.0), firGeometry(4, 0.72, 1.15), firGeometry(2, 1.25, 1.05)];
+  const kinds = [firGeometry(6, 1.0, 1.0, 3), firGeometry(7, 0.72, 1.12, 5), firGeometry(5, 1.2, 1.0, 9)];
   const groups = new Map(), KINDS = LEVEL.kinds || [0, 1, 2];
   trees.forEach((t, i) => { const key = chunkOf(-t.z) * 3 + KINDS[i % KINDS.length]; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); });
   const o = new THREE.Object3D(), c = new THREE.Color();
@@ -310,7 +335,7 @@ function firGeometry(tiers, girth, height0) {
     for (let j = 0; j < 3; j++) col.push(c.r, c.g, c.b);
   }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  const N = LEVEL.rocks || 560, mat = rim(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }), 0.45, 2.5), o = new THREE.Object3D(), lists = new Map();
+  const N = LEVEL.rocks || 560, mat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, normalMap: TEX.leather }), o = new THREE.Object3D(), lists = new Map();
   for (let i = 0; i < N; i++) {
     let d = 0; for (let tries = 0; tries < 6; tries++) { d = D_MIN + 30 + r() * (D_MAX - D_MIN - 60); if (r() < slopeAt(d) * 0.9) break; }
     const steep = slopeAt(d), a = 3.5 + Math.pow(r(), 1.4) * 40, x = cx(d) + (r() < 0.5 ? -1 : 1) * (widthAt(d) + a), z = -d, s = (1.2 + r() * 2.6) * (1 + steep) * (0.7 + a * 0.02);
@@ -341,11 +366,12 @@ export function updateWorld(d, time, speed = 0) {
   const a = PAL[i][1], b = PAL[i + 1][1], t = clamp((p - PAL[i][0]) / (PAL[i + 1][0] - PAL[i][0]), 0, 1);
   for (const k of KEYS) pal[k].copy(a[k]).lerp(b[k], t);
   pal.stars = lerp(a.stars, b.stars, t); pal.aurora = lerp(a.aurora, b.aurora, t); pal.gain = lerp(a.gain || 1, b.gain || 1, t);
-  hemi.intensity = 1.55 * pal.gain; sun.intensity = 2.3 * pal.gain;
+  hemi.intensity = 0.75 * pal.gain; sun.intensity = 2.6 * pal.gain; scene.environmentIntensity = 0.9 * pal.gain;
   pal.fog.copy(pal.hor).lerp(pal.mid, 0.12);
   scene.fog.color.copy(pal.fog);
   hemi.color.copy(pal.sky); hemi.groundColor.copy(pal.gnd); sun.color.copy(pal.light);
   skyMat.uniforms.uStars.value = pal.stars; skyMat.uniforms.uAurora.value = pal.aurora; skyMat.uniforms.uTime.value = time;
+  refreshEnv(time);
   sunView.copy(sunDir).transformDirection(camera.matrixWorldInverse);
   sky.position.copy(camera.position);
   ridges.forEach((m, l) => {

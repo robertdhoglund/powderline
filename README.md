@@ -1,4 +1,4 @@
-# POWDERLINE (v0.9)
+# POWDERLINE (v0.10)
 
 A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 
@@ -35,7 +35,7 @@ Things to know:
 - **Goblins throw snowballs** at where you are heading. Carve to dodge.
 - **Rank** needs a share of the goblins, the same share of the gates, and a time against par. A is 90% of both, on par. The clock under the speed shows your time and par.
 - **Base camp** is where you pick a mountain and buy upgrades with coins.
-- **Spin** by holding a direction in the air.
+- **Tricks in the air:** hold `A`/`D` to spin, tap `W` for a front flip or `S` for a backflip, hold `E` to grab. They score, and a good style total lifts your rank.
 - **Ice walls** want an arrow. Riding through one costs speed and your flow multiplier, never the run.
 - **Flow** multiplies every score and fades if nothing happens. A tree bonk resets it.
 

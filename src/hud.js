@@ -56,9 +56,9 @@ export function showOverlay(kind, res) {
     const s = G.stats, t = G.totals, mm = Math.floor(s.time / 60), ss = (s.time % 60).toFixed(1).padStart(4, '0');
     el.kicker.textContent = `${LEVEL.name} · RUN COMPLETE`; el.title.innerHTML = `RANK <span>${res.rank}</span>`;
     el.tag.innerHTML = `${G.score.toLocaleString('en-US')} points  ·  +${res.coins.toLocaleString('en-US')} coins${res.opened ? `  ·  ${res.opened.name} unlocked` : ''}<br><small>${res.need}</small>`;
-    el.stats.innerHTML = [['GOBLINS', `${s.kills}/${t.targets}`, res.gob], ['GATES', `${s.gates}/${t.gates}`, res.gate], [`TIME · PAR ${Math.floor(res.par / 60)}:${String(Math.round(res.par % 60)).padStart(2, '0')}`, `${mm}:${ss}`, res.speed]]
+    el.stats.innerHTML = [['GOBLINS', `${s.kills}/${t.targets}`, res.gob], ['GATES', `${s.gates}/${t.gates}`, res.gate], [`TIME · PAR ${Math.floor(res.par / 60)}:${String(Math.round(res.par % 60)).padStart(2, '0')}`, `${mm}:${ss}`, res.speed], ['STYLE', s.style.toLocaleString('en-US'), res.styleK]]
       .map(([k, v, f]) => `<div class="big"><b>${v}</b><span>${k}</span><em><u style="width:${Math.round(f * 100)}%"></u></em></div>`).join('')
-      + [['PERFECT', s.perfect], ['BEST FLOW', `×${s.bestFlow}`], ['BIG AIR', `${s.maxAir.toFixed(1)}s`], ['SNOWBALLED', s.hits]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('');
+      + [['TRICKS', s.tricks], ['PERFECT', s.perfect], ['BEST FLOW', `×${s.bestFlow}`], ['BIG AIR', `${s.maxAir.toFixed(1)}s`], ['SNOWBALLED', s.hits]].map(([k, v]) => `<div><b>${v}</b><span>${k}</span></div>`).join('');
     el.start.textContent = 'RIDE AGAIN';
   }
 }

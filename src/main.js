@@ -65,7 +65,7 @@ addEventListener('blur', () => { keys.clear(); if (G.mode === 'run' && !G.auto) 
 // Mouse: the reticle follows the pointer; hold to draw, release to shoot.
 // Touch: left thumb drags to steer (up = tuck, down = brake); right thumb holds and drags to aim, releases to shoot, taps to jump.
 let mouseFocus = false;
-const touch = { steer: null, aim: null, turn: 0, tuck: false, brake: false };
+const touch = { steer: null, aim: null, turn: 0, tuck: false, brake: false, grabUntil: 0 };
 const setReticle = (x, y) => { I.px = clamp(x, 0, innerWidth); I.py = clamp(y, 0, innerHeight); I.mx = (I.px / innerWidth) * 2 - 1; I.my = 1 - (I.py / innerHeight) * 2; };
 addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'touch') return setReticle(e.clientX, e.clientY);
@@ -90,7 +90,7 @@ const lift = (e) => {
   if (e.pointerType !== 'touch') { if (e.button === 0) release(); else if (e.button === 2) { I.focus = false; mouseFocus = false; } return; }
   if (touch.steer && e.pointerId === touch.steer.id) { touch.steer = null; touch.turn = 0; touch.tuck = touch.brake = false; }
   if (touch.aim && e.pointerId === touch.aim.id) {
-    if (!touch.aim.moved && e.timeStamp - touch.aim.t0 < 230) { cancelDraw(true); if (G.mode === 'run') I.jump = true; } else release();
+    if (!touch.aim.moved && e.timeStamp - touch.aim.t0 < 230) { cancelDraw(true); if (G.mode === 'run') { if (P.grounded) I.jump = true; else touch.grabUntil = performance.now() + 700; } } else release();
     touch.aim = null;
   }
 };
@@ -107,9 +107,11 @@ function readInput() {
   const has = (...k) => k.some((x) => keys.has(x));
   I.turn = (has('d', 'arrowright') ? 1 : 0) - (has('a', 'arrowleft') ? 1 : 0);
   if (has('shift')) I.focus = true; else if (!mouseFocus) I.focus = false;
+  I.grab = has('e', 'f') || touch.grabUntil > performance.now();
   I.tuck = has('w', 'arrowup') || touch.tuck; I.brake = has('s', 'arrowdown') || touch.brake;
   if (!I.turn) I.turn = touch.turn;
   if (G.auto && G.mode === 'run') { autopilot(); if (Q.has('tuck')) I.tuck = true; }
+  if (G.testInput) Object.assign(I, G.testInput);   // tests can drive the inputs directly
 }
 
 // Autopilot: used by the smoke test (?auto=1). Rides the gates and shoots what it sees.

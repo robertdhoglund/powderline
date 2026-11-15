@@ -11,7 +11,7 @@ export const G = {
   score: 0, flow: 1, flowT: 0,
   stats: null,
   auto: false,            // autopilot, used by the smoke test and ?auto=1
-  input: { turn: 0, tuck: false, brake: false, jump: false, mx: 0, my: 0.12, px: 0, py: 0 },
+  input: { turn: 0, tuck: false, brake: false, jump: false, grab: false, mx: 0, my: 0.12, px: 0, py: 0 },
   aim: { blend: 0, draw: 0, drawing: false, focus: 1, dir: new THREE.Vector3(0, 0, -1), lock: null },
 };
 
@@ -19,7 +19,7 @@ export function resetState() {
   G.t = 0; G.timeScale = 1; G.hitstop = 0; G.shake = 0; G.punch = 0;
   G.score = 0; G.flow = 1; G.flowT = 0;
   G.shield = 0; G.frost = 0;
-  G.stats = { hits: 0, kills: 0, perfect: 0, ice: 0, gates: 0, maxAir: 0, bonks: 0, time: 0, bestFlow: 1 };
+  G.stats = { style: 0, tricks: 0, sketchy: 0, hits: 0, kills: 0, perfect: 0, ice: 0, gates: 0, maxAir: 0, bonks: 0, time: 0, bestFlow: 1 };
   G.aim.blend = 0; G.aim.zoom = 0; G.aim.focusOn = false; G.aim.hold = 0; G.aim.draw = 0; G.aim.drawing = false; G.aim.focus = 1; G.aim.lock = null;
 }
 resetState();
