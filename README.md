@@ -1,4 +1,4 @@
-# POWDERLINE (v0.11)
+# POWDERLINE (v0.12)
 
 A browser game: carve down a steep mountain from dusk to dawn, hit jumps and cliff drops, shoot goblins with a bow in slow motion, shatter ice. One run takes about a minute and a half. The goal is **feel first, features second**.
 
@@ -51,7 +51,8 @@ src/lobby.js        base camp, upgrades shop, end-of-run scoring
 src/upgrades.js     what the shop sells
 src/store.js        saved coins, upgrades and best ranks
 src/world.js        renderer, bloom, sky, light palette, terrain mesh, trees, rocks
-src/player.js       carve physics, air and landings, the posed rider, scarves, light trails
+src/player.js       carve physics, air and landings, pose inputs, light trails
+src/hero.js         the rider: skinned body, head, hair, board, bow and scarf, modelled and rigged in code
 src/camera.js       chase camera
 src/snow.js         powder spray, the trench, speed-line flakes
 src/bow.js          draw, focus, aim solve, arrows
@@ -64,6 +65,7 @@ src/hud.js          score, flow, reticle, screens
 src/audio.js        small synthesized sound set (no music yet)
 tests/smoke.cjs     autopilot rides the whole run in fast-forward
 tools/build-artifact.mjs  packs the game into one HTML file
+tools/hero.html     character viewer: the rider by himself, any pose, any angle
 vendor/three/       Three.js r187 and its bloom passes (MIT)
 ```
 

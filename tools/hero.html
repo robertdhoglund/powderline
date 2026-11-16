@@ -1,0 +1,56 @@
+<!doctype html>
+<!-- Character viewer: the hero by himself, lit as in the game. Serve the project root and open /tools/hero.html
+     ?pose=ride|carve|tuck|air|aim|grab|title   ?wind=18 (m/s)   ?flow=1..8   ?az=degrees ?el=degrees ?dist=m   ?bg=hex -->
+<meta charset="utf-8"><title>Powderline hero</title>
+<style>html,body{margin:0;height:100%;background:#1b1450;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports": {"three": "../vendor/three/build/three.module.js", "three/addons/": "../vendor/three/addons/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { LOOK } from '../src/build.js';
+import { createHero } from '../src/hero.js';
+
+const Q = new URLSearchParams(location.search), num = (k, d) => (Q.has(k) ? +Q.get(k) : d);
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05; renderer.shadowMap.enabled = true;
+renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 200);
+scene.background = new THREE.Color(Q.get('bg') ? '#' + Q.get('bg') : '#e9c6dc'); scene.fog = new THREE.FogExp2(scene.background, 0.004);
+// The dusk palette from the first mountain.
+const light = new THREE.Color('#ffb88e'), sky = new THREE.Color('#9d8fe8'), gnd = new THREE.Color('#4b3d92'), halo = new THREE.Color('#ff7448'), top = new THREE.Color('#1b1450');
+const sunDir = new THREE.Vector3(0.24, 0.32, -1).normalize();
+const hemi = new THREE.HemisphereLight(sky, gnd, 0.75), sun = new THREE.DirectionalLight(light, 2.6);
+sun.position.copy(sunDir).multiplyScalar(40); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 90 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.04;
+scene.add(hemi, sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#f3ecff', roughness: 0.95 })); ground.receiveShadow = true; scene.add(ground);
+LOOK.uRim.value.copy(light).lerp(halo, 0.35).multiplyScalar(0.85); LOOK.uFill.value.copy(sky).lerp(top, 0.3);
+
+const target = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 });
+const composer = new EffectComposer(renderer, target);
+composer.addPass(new RenderPass(scene, camera)); composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.34, 0.7, 1.0)); composer.addPass(new OutputPass());
+
+const hero = createHero(); hero.group.scale.setScalar(1.5); scene.add(hero.group, hero.world);
+const POSES = {
+  ride: { crouch: 0.3, edge: 0 }, carve: { crouch: 0.45, edge: 0.8, roll: -0.4 }, heel: { crouch: 0.45, edge: -0.8, roll: 0.4 }, tuck: { crouch: 0.8, edge: 0 },
+  air: { crouch: 0.6, edge: 0, grounded: false, lift: 1.2 }, grab: { crouch: 0.9, edge: 0, grounded: false, grab: 1, lift: 1.2, roll: 0.25 },
+  aim: { crouch: 0.2, edge: 0, aimBlend: 1, draw: 1, drawing: true }, title: { crouch: 0.3, edge: 0, title: true }, stand: { crouch: 0, edge: 0 },
+};
+const S = { t: 0, crouch: 0.3, edge: 0, grounded: true, aimBlend: 0, aimDir: new THREE.Vector3(0.1, 0.12, -1).normalize(), draw: 0, drawing: false, grab: 0, title: false,
+  vel: new THREE.Vector3(0, 0, -num('wind', 18)), heading: 0, cam: camera.position, flow: num('flow', 1) };
+function setPose(name) { const p = POSES[name] || POSES.ride; Object.assign(S, { grounded: true, aimBlend: 0, draw: 0, drawing: false, grab: 0, title: false }, p); hero.group.position.set(0, p.lift || 0.02, 0); hero.group.rotation.set(0, 0, p.roll || 0); hero.reset(); for (let i = 0; i < 240; i++) step(1 / 60); }
+function setCam(az, el, dist, ly = 1.45, fov = 30) {
+  const a = az * Math.PI / 180, b = el * Math.PI / 180, c = hero.group.position;
+  camera.position.set(c.x + Math.sin(a) * Math.cos(b) * dist, c.y + ly + Math.sin(b) * dist, c.z + Math.cos(a) * Math.cos(b) * dist); camera.lookAt(c.x, c.y + ly, c.z); camera.fov = fov; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+}
+function step(dt) { S.t += dt; hero.update(S, dt); }
+function draw() { LOOK.uSunView.value.copy(sunDir).transformDirection(camera.matrixWorldInverse); composer.render(); }
+setCam(num('az', 35), num('el', 8), num('dist', 9)); setPose(Q.get('pose') || 'ride');
+let last = performance.now(), auto = !Q.has('still');
+function frame(now) { requestAnimationFrame(frame); if (!auto) return; const dt = Math.min(0.05, (now - last) / 1000); last = now; step(dt); if (!Q.has('az')) setCam(now * 0.02, 8, num('dist', 9)); draw(); }
+requestAnimationFrame(frame);
+// For screenshots: pose, look, render, return the picture.
+window.__hero = { shot(pose, az, el, dist, ly, fov) { auto = false; setCam(az, el, dist, ly, fov); setPose(pose); setCam(az, el, dist, ly, fov); step(1 / 60); draw(); return renderer.domElement.toDataURL('image/png'); }, hero, S };
+</script>

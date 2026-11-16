@@ -43,6 +43,7 @@ When asking the other AI for help, include a new instruction such as:
 ## Technical notes
 
 - `src/config.js` holds the feel numbers. `src/course.js` holds the level as data, in beats.
+- To work on the rider, use the viewer (`tools/hero.html`): it loads in a second and shows any pose from any angle. Judge him there first, then in the game.
 - Each system is one module in `src/` (see the file map in `README.md`). Modules share state through `G` in `src/state.js` and the rider through `P` in `src/player.js`.
 - Every module has an `update...` and a `reset...` function. Restart calls every reset; nothing reloads the page.
 - `step(rdt)` in `src/main.js` is one tick of game logic with no rendering. `window.__pl.sim(seconds)` fast-forwards it; the smoke test uses this.

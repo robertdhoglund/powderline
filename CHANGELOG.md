@@ -1,5 +1,45 @@
 # Changes and handoffs
 
+## v0.12 | 2026-11-16 | Claude
+
+The rider is rebuilt from nothing as a modelled, rigged character. The v0.11 rider was rigid tubes and balls stretched between joints; this one is a single skinned body with shaped anatomy.
+
+**Changed**
+
+- **New file `src/hero.js`: the whole character.** It needs only three.js and the shared material, so it can be shown by itself.
+  - **One skinned body.** Legs, torso, arms, hands, boots, tunic, mantle, belt and quiver are one mesh on fifteen bones. Knees, elbows, waist and neck bend smoothly; there are no ball joints.
+  - **Shaped with splines.** Every part is a cross-section swept along a few keys joined by a smooth curve (`sweep`). The section can be deeper in front than behind and squarer than round, so thighs, kneecaps, calves, a narrow waist, chest and shoulders have real form.
+  - **Clothes.** Short flared tunic that rides on the thighs and falls to a point front and back; a cowl over the shoulders with a point down the back and a clasp; standing collar; pale sleeves into hard bracers; gloved fists with thumbs; quiver strap; chunky snowboard boots with a rolled lip, pale cuff, toe box, sole and lit welt.
+  - **Head.** Modelled, not a ball: wide at the eyes, small chin, a nose, swept-back pointed ears. The face is drawn on a patch that follows the surface (large violet-to-cyan eyes, white brows).
+  - **Hair.** A scalp cap and a ragged curtain round the back, a five-blade fringe, long side locks, two layers of broad locks down the back, one wind-blown strand, and a ponytail lock that swings.
+  - **Board and bindings.** Base plates, highbacks, ankle and toe straps, set at a duck stance.
+  - **Bow.** Flat recurved limbs that taper to lit tips.
+  - **Scarf.** Two tails of real cloth strip, lit, lying flat to the sky and rolling slowly. The scarf pays out as flow climbs: short at x1, about three times as long at x8.
+- **Stance.** More upright and athletic: hips over the board, chest forward over the toes as the knees bend, shoulders turned toward the nose, trailing arm out behind for balance. Knees drive into carves.
+- **Character viewer: `tools/hero.html`.** Serve the project root and open `/tools/hero.html`. `?pose=ride|carve|heel|tuck|air|grab|aim|title|stand`, `?wind=`, `?flow=`, `?az=&el=&dist=`. It loads in about a second, which is what made iterating on the model practical.
+- **`src/player.js`** now only does physics, posing inputs and the light trails; it hands the pose to `hero.update`.
+- The rider is drawn 8% larger (scale 1.5 to 1.62).
+
+**Tested**
+
+- `npm run check` and `npm test` pass; Japan, France and Alaska finish under autopilot with no console errors.
+- Reviewed in the viewer: riding, toe-side and heel-side carves, tuck, air, grab, full draw and the title pose, from the front, side and behind. Reviewed in the game: play frames on Norway and Japan, two close-ups, the title screen.
+- **Not tested on real hardware and not played by a person**, as with v0.11. The body is about nine thousand skinned vertices in one draw call.
+
+**Known issues**
+
+- No outline or self-shadowing on the figure.
+- The tunic skirt follows the thighs by weights, not simulation. Under it the hips and upper thighs are the tunic's colour so nothing shows through, which reads as shorts below the hem at the sides.
+- Fingers are a closed fist. The front hand does not rotate to the bow grip.
+- The ponytail is one flat lock; at speed it streams straight back.
+- `tools/hero.html` uses a fixed dusk light, not the level palettes.
+
+**Best next action**
+
+Play it. If the rider now holds up, the same `sweep` kit can rebuild the goblins and the props to the same standard.
+
+---
+
 ## v0.11 | 2026-11-15 | Claude
 
 A new look for the whole game, aimed at the neon, graphic style of Sayonara Wild Hearts: clean shapes, three tones of light, coloured rim light, and trim that glows. The hero is rebuilt in violet with white hair. The palettes and the light of each mountain are unchanged.

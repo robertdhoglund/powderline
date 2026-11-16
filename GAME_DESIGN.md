@@ -94,7 +94,7 @@ Graphic and luminous, in the spirit of Sayonara Wild Hearts but with our own sha
 - **Three tones of light.** Shadow, mid and lit, with soft edges. A rim of sun colour on every silhouette.
 - **Detail is light.** Trim, eyes, lanterns and trails glow; bloom carries them. Nothing is detailed with texture.
 - **Colour comes from the mountain.** Each level's palette drives sky, snow, rim light and fog. Accents are magenta and cyan.
-- **The hero** is a moonlit ranger of our own design: the classic adventurer's outline (tunic, pointed ears, bow, quiver) in violet, with a white mane and glowing trim. Not green, not red.
+- **The hero** is a moonlit ranger of our own design: the classic adventurer's outline (tunic, pointed ears, bow, quiver) in violet, with a white mane and glowing trim. Not green, not red. Since v0.12 he is a modelled, skinned character (`src/hero.js`), not an assembly of primitives; anything that stands next to him should be built to that standard.
 - **Motion draws lines.** Scarves, hair and board trails are ribbons; the trails change colour with flow.
 
 The physically based look of v0.10 and the flat ink look of v0.9 were both dropped.
